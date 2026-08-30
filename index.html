@@ -245,14 +245,6 @@
   </div>
 
   <div id="lobby">
-    <div class="profile-box" style="display:none;">
-      <span class="profile-label">PROFIL</span>
-      <div class="profile-row">
-        <div class="profile-avatar" id="profileAvatar" style="background:#65aadd">?</div>
-        <input id="profileName" maxlength="20" placeholder="ISMINGIZNI YOZING" />
-      </div>
-    </div>
-
     <div class="tabs">
       <button class="tab-btn active" data-tab="join">QO'SHILISH</button>
       <button class="tab-btn" data-tab="create">YARATISH</button>
@@ -340,17 +332,19 @@
       <div class="profile-box">
         <span class="profile-label">MEHMON PROFILI</span>
         <div class="profile-row">
-          <div class="profile-avatar" id="guestAvatar" style="background:#65aadd">?</div>
-          <div style="flex:1; min-width:0;">
-            <div style="font-size:14px; color:var(--text); letter-spacing:0.5px;">Anonim</div>
-          </div>
+          <div class="profile-avatar" id="profileAvatar" style="background:#65aadd">?</div>
+          <input id="profileName" maxlength="20" placeholder="ISMINGIZNI YOZING" />
+        </div>
+        <div class="guest-id-row">
+          <span class="gid-label">USERNAME</span>
+          <span class="gid-val" id="guestUsernameDisplay">--------</span>
         </div>
         <div class="guest-id-row">
           <span class="gid-label">ID</span>
           <span class="gid-val" id="guestIdDisplay">--------</span>
         </div>
       </div>
-      <div class="howto">Mehmon rejimida username bo'lmaydi — faqat anonim ID orqali tanilasiz. Ism kiritsangiz ham, u faqat shu qurilmada, boshqalarga ID sifatida ko'rinadi. Akkaunt ochish uchun <b>HISOB</b> bo'limiga o'ting.</div>
+      <div class="howto">Mehmon rejimida username tasodifiy beriladi va o'zgartirib bo'lmaydi. Faqat ismingizni o'zgartirishingiz mumkin. Akkaunt ochish uchun <b>HISOB</b> bo'limiga o'ting.</div>
     </div>
 
     <div class="ptab-panel" id="ppanel-account">
@@ -369,7 +363,7 @@
 
         <div class="psub-panel" id="asub-register">
           <input class="form-input" id="regName" type="text" maxlength="20" placeholder="ISM" autocomplete="name" />
-          <input class="form-input" id="regEmail" type="text" maxlength="20" placeholder="USERNAME (bo'sh qoldirsa avtomatik beriladi)" autocomplete="username" />
+          <input class="form-input" id="regEmail" type="text" maxlength="20" placeholder="USERNAME" autocomplete="username" />
           <input class="form-input" id="regPassword" type="password" placeholder="PAROL" autocomplete="new-password" />
           <input class="form-input" id="regPassword2" type="password" placeholder="PAROLNI TAKRORLANG" autocomplete="new-password" />
           <div class="status" id="statusRegister"></div>
@@ -583,7 +577,7 @@ const auth = firebase.auth();
 const profileScreenEl = document.getElementById('profileScreen');
 const profileIconBtn = document.getElementById('profileIconBtn');
 const profileBackBtn = document.getElementById('profileBack');
-const guestAvatarEl = document.getElementById('guestAvatar');
+const guestUsernameDisplayEl = document.getElementById('guestUsernameDisplay');
 const guestIdDisplayEl = document.getElementById('guestIdDisplay');
 
 function openProfileScreen(){
@@ -643,13 +637,13 @@ async function loadOrCreateProfile(user){
   } else {
     currentProfile = {
       name: isAnon ? 'Mehmon' : (user.displayName || 'Foydalanuvchi'),
-      username: isAnon ? '' : autoUsername(user.uid),
+      username: autoUsername(user.uid),
       avatar: user.photoURL || null,
       provider: isAnon ? 'anonymous' : (user.providerData[0] ? user.providerData[0].providerId : 'password'),
       createdAt: Date.now()
     };
     await ref.set(currentProfile);
-    if (!isAnon && currentProfile.username) {
+    if (!isAnon) {
       await db.collection('usernames').doc(currentProfile.username).set({ uid: user.uid }).catch(()=>{});
     }
   }
@@ -662,6 +656,14 @@ function renderAccountView(user){
   const isAnon = user.isAnonymous;
   updateGoogleBtnVisibility(!isAnon);
 
+  const p = currentProfile || {};
+  guestIdDisplayEl.textContent = user.uid.slice(0, 8);
+  guestUsernameDisplayEl.textContent = p.username || autoUsername(user.uid);
+  profileNameInput.value = isAnon ? (p.name || '') : (p.username || p.name);
+  localStorage.setItem(PROFILE_NAME_KEY, profileNameInput.value);
+  updateProfileAvatar();
+  refreshAllBtnStates();
+
   if (isAnon) {
     accountLoggedOutEl.style.display = 'block';
     accountLoggedInEl.style.display = 'none';
@@ -670,7 +672,6 @@ function renderAccountView(user){
   accountLoggedOutEl.style.display = 'none';
   accountLoggedInEl.style.display = 'block';
 
-  const p = currentProfile || {};
   accNameInput.value = p.name || '';
   accUsernameInput.value = p.username || autoUsername(user.uid);
   if (p.avatar) {
@@ -681,17 +682,26 @@ function renderAccountView(user){
     accAvatarEl.textContent = (p.name || '?').charAt(0).toUpperCase();
     accAvatarEl.style.background = colorForProfile(p.name || 'x');
   }
-  // Xona ichida ko'rinadigan ism ham shu profildan olinadi
-  profileNameInput.value = p.username || p.name;
-  localStorage.setItem(PROFILE_NAME_KEY, profileNameInput.value);
-  updateProfileAvatar();
-  refreshAllBtnStates();
 }
+
+// --- Mehmon: ismni tahrirlash Firestore'ga yoziladi (username o'zgarmaydi) ---
+let guestNameSaveTimer = null;
+profileNameInput.addEventListener('input', () => {
+  const user = auth.currentUser;
+  if (!user || !user.isAnonymous) return;
+  clearTimeout(guestNameSaveTimer);
+  guestNameSaveTimer = setTimeout(() => {
+    const newName = profileNameInput.value.trim() || 'Mehmon';
+    if (currentProfile) currentProfile.name = newName;
+    db.collection('users').doc(user.uid).update({ name: newName }).catch((err) => {
+      console.error('Mehmon ism saqlash xatosi:', err);
+    });
+  }, 500);
+});
 
 // --- Anonim sessiyani boshlash (sahifa ochilganda) ---
 auth.onAuthStateChanged((user) => {
   if (user) {
-    guestIdDisplayEl.textContent = user.uid.slice(0, 8);
     loadOrCreateProfile(user);
   } else {
     auth.signInAnonymously().catch((err) => {
@@ -707,11 +717,10 @@ document.getElementById('registerBtn').addEventListener('click', async () => {
   const usernameRaw = document.getElementById('regEmail').value.trim(); // shu input username sifatida ishlatiladi
   const pass = document.getElementById('regPassword').value;
   const pass2 = document.getElementById('regPassword2').value;
-  if (!name || !pass) { setStatusEl(st, "Ism va parolni to'ldiring", true); return; }
+  if (!name || !usernameRaw || !pass) { setStatusEl(st, "Ism, username va parolni to'ldiring", true); return; }
   if (pass !== pass2) { setStatusEl(st, 'Parollar mos emas', true); return; }
   if (pass.length < 6) { setStatusEl(st, "Parol kamida 6 belgidan iborat bo'lsin", true); return; }
-  const user0 = auth.currentUser;
-  const username = usernameRaw ? usernameRaw.replace(/\s+/g, '').toLowerCase() : autoUsername(user0 ? user0.uid : Math.random().toString(36).slice(2));
+  const username = usernameRaw.replace(/\s+/g, '').toLowerCase();
 
   try {
     const takenSnap = await db.collection('usernames').doc(username).get();
