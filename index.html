@@ -2227,7 +2227,8 @@ joinBtn.addEventListener('click', async () => {
   try{
     roomSnap = await roomRef.get();
   }catch(e){
-    setStatusJoin('Firestore xatosi: ruxsat yo\'q. Rules\'ni tekshir!', true);
+    console.error('room get:', e);
+    setStatusJoin('Firestore xatosi (o\'qish): ' + (e.code || e.message), true);
     setBtnLoading(joinBtn, false, '', 'QO\'SHILISH');
     return;
   }
@@ -2281,11 +2282,12 @@ joinBtn.addEventListener('click', async () => {
       tx.set(roomRef, { lastJoinedAt: Date.now(), peakCount: Math.max(prevPeak, newCount) }, { merge: true });
     });
   }catch(e){
+    console.error('join transaction:', e);
     if (String(e.message).startsWith('ROOM_FULL')){
       const count = String(e.message).split(':')[1];
       setStatusJoin(`Xona to'lgan (max ${roomMaxParticipants} kishi, hozir ${count}).`, true);
     } else {
-      setStatusJoin('Firestore xatosi: ruxsat yo\'q. Rules\'ni tekshir!', true);
+      setStatusJoin('Firestore xatosi (qo\'shilish): ' + (e.code || e.message), true);
     }
     setBtnLoading(joinBtn, false, '', 'QO\'SHILISH');
     return;
@@ -2331,7 +2333,8 @@ createBtn.addEventListener('click', async () => {
   try{
     roomSnap = await roomRef.get();
   }catch(e){
-    setStatusCreate('Firestore xatosi: ruxsat yo\'q. Rules\'ni tekshir!', true);
+    console.error('create room get:', e);
+    setStatusCreate('Firestore xatosi (o\'qish): ' + (e.code || e.message), true);
     setBtnLoading(createBtn, false, '', 'XONA YARATISH');
     return;
   }
@@ -2353,7 +2356,16 @@ createBtn.addEventListener('click', async () => {
     peakCount: 1
   };
   if (password) payload.passwordHash = await sha256Hex(password);
-  await roomRef.set(payload);
+
+  try{
+    await roomRef.set(payload);
+  }catch(e){
+    console.error('create room set:', e);
+    setStatusCreate('Firestore xatosi (xona yaratish): ' + (e.code || e.message), true);
+    setBtnLoading(createBtn, false, '', 'XONA YARATISH');
+    return;
+  }
+
   addMyRoom(room);
   setStatusCreate('Yangi xona yaratildi');
   createdCodeText.textContent = room;
@@ -2367,7 +2379,14 @@ createBtn.addEventListener('click', async () => {
   isRoomHost = true;
   muted = false;
   forceMuted = false;
-  await myPeerRef.set({ joinedAt: Date.now(), name: myName, muted: false, forceMuted: false });
+  try{
+    await myPeerRef.set({ joinedAt: Date.now(), name: myName, muted: false, forceMuted: false });
+  }catch(e){
+    console.error('create peer set:', e);
+    setStatusCreate('Firestore xatosi (peer): ' + (e.code || e.message), true);
+    setBtnLoading(createBtn, false, '', 'XONA YARATISH');
+    return;
+  }
 
   setBtnLoading(createBtn, false, '', 'XONA YARATISH');
   enterCallScreen();
