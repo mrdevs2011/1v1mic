@@ -198,9 +198,23 @@
   .room-card:hover{ border-color:var(--amber); background:var(--amber-dim); }
   .room-card .rc-code{ font-size:15px; letter-spacing:1px; color:var(--text); font-weight:700; }
   .room-card .rc-meta{ flex:1; min-width:0; }
+  .room-card .rc-name-row{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
   .room-card .rc-name{ font-size:12px; color:var(--text); letter-spacing:0; }
+  .room-card .rc-status-badge{
+    font-size:10px; font-weight:700; letter-spacing:.3px; padding:1px 6px; border-radius:20px;
+    background:#f1f5f9; color:var(--text-dim); flex-shrink:0;
+  }
+  .room-card .rc-status-badge.active{ background:var(--green-dim); color:var(--green); }
   .room-card .rc-count{ font-size:11px; color:var(--text-dim); letter-spacing:0; margin-top:2px; }
   .room-card .rc-lock{ color:var(--text-dim); flex-shrink:0; }
+  .room-card .rc-more-toggle{
+    background:none; border:none; color:var(--amber); font-family:var(--font);
+    font-size:11px; font-weight:600; letter-spacing:0; padding:4px 0 0; cursor:pointer;
+  }
+  .room-card .rc-details{ margin-top:4px; padding-top:4px; border-top:1px dashed var(--line); display:none; }
+  .room-card .rc-details.open{ display:block; }
+  .room-card .rc-detail-row{ font-size:11px; color:var(--text-dim); letter-spacing:0; margin-top:2px; }
+  .room-card .rc-detail-row b{ color:var(--text); font-weight:600; }
   .empty-list{ text-align:center; font-size:12px; color:var(--text-dim); letter-spacing:0; padding:24px 8px; }
 
   .participants{ display:flex; flex-direction:column; gap:2px; margin-bottom:14px; min-height:26px; }
@@ -345,7 +359,7 @@
       </div>
       <div class="status" id="statusJoin">Ismingiz va xona kodini kiriting</div>
       <button class="btn-main" id="joinBtn" disabled>QO'SHILISH</button>
-      <button class="mic-retry-btn" id="micRetryJoin"><svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg><span id="micRetryJoinTxt">MIKROFONNI QAYTA SO'RASH</span></button>
+      <button class="mic-retry-btn" id="micRetryJoin"><svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg><span id="micRetryJoinTxt">MIKROFON RUXSATINI BROWSERDAN QAYTA SO'RASH</span></button>
     </div>
 
     <div class="tab-panel" id="panel-create">
@@ -360,6 +374,10 @@
       <label for="passwordCreate">PAROL (ixtiyoriy)</label>
       <div class="code-row">
         <input id="passwordCreate" type="password" minlength="4" maxlength="9" placeholder="4-9 BELGI, IXTIYORIY" />
+      </div>
+      <label for="maxParticipantsCreate">MAKSIMAL ODAM SONI (2-30)</label>
+      <div class="code-row">
+        <input id="maxParticipantsCreate" type="number" min="2" max="30" value="10" placeholder="MASALAN 10" />
       </div>
       <label>KO'RINISH</label>
       <div class="vis-row">
@@ -378,7 +396,7 @@
       </div>
       <div class="status" id="statusCreate">Ma'lumotlarni to'ldiring va XONA YARATISH bosing</div>
       <button class="btn-main" id="createBtn" disabled>XONA YARATISH</button>
-      <button class="mic-retry-btn" id="micRetryCreate"><svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg><span id="micRetryCreateTxt">MIKROFONNI QAYTA SO'RASH</span></button>
+      <button class="mic-retry-btn" id="micRetryCreate"><svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg><span id="micRetryCreateTxt">MIKROFON RUXSATINI BROWSERDAN QAYTA SO'RASH</span></button>
     </div>
 
     <div class="tab-panel" id="panel-rooms">
@@ -531,7 +549,9 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const ROOM_COLLECTION = 'aloqa-xonasi-rooms';
-const MAX_PARTICIPANTS = 10;
+const DEFAULT_MAX_PARTICIPANTS = 10;
+const MIN_MAX_PARTICIPANTS = 2;
+const MAX_MAX_PARTICIPANTS = 30;
 const MY_ROOMS_KEY = 'aloqa-xonasi-my-rooms';
 
 const lobbyEl = document.getElementById('lobby');
@@ -550,6 +570,7 @@ const micRetryJoinTxt = document.getElementById('micRetryJoinTxt');
 const roomCreateInput = document.getElementById('roomCreate');
 const roomNameCreateInput = document.getElementById('roomNameCreate');
 const passwordCreateInput = document.getElementById('passwordCreate');
+const maxParticipantsCreateInput = document.getElementById('maxParticipantsCreate');
 const createBtn = document.getElementById('createBtn');
 const statusCreateEl = document.getElementById('statusCreate');
 const visPublicBtn = document.getElementById('visPublic');
@@ -651,7 +672,9 @@ function refreshCreateBtnState(){
   const roomNameOk = roomNameCreateInput.value.trim().length > 0;
   const pass = passwordCreateInput.value;
   const passOk = pass.length === 0 || (pass.length >= 4 && pass.length <= 9);
-  createBtn.disabled = !(nameOk && codeOk && roomNameOk && passOk);
+  const maxP = parseInt(maxParticipantsCreateInput.value, 10);
+  const maxPOk = Number.isFinite(maxP) && maxP >= MIN_MAX_PARTICIPANTS && maxP <= MAX_MAX_PARTICIPANTS;
+  createBtn.disabled = !(nameOk && codeOk && roomNameOk && passOk && maxPOk);
 }
 function refreshAllBtnStates(){ refreshJoinBtnState(); refreshCreateBtnState(); }
 
@@ -679,9 +702,14 @@ let audioCtx, analyser, meterRAF;
 let joined = false;
 let roomRef = null;
 let myPeerRef = null;
+let myPeerUnsub = null;
 let presenceUnsub = null;
+let isRoomHost = false;
+let forceMuted = false; // host meni majburan o'chirdimi
 const peers = {};
 const peerNames = {};
+const peerMuted = {};      // pid -> o'sha peer o'zini mute qilganmi
+const peerForceMuted = {}; // pid -> hostmi kimdir uni majburan o'chirganmi
 const pairUnsubs = {};
 
 function setStatus(text, isErr){ statusEl.textContent = text; statusEl.className = 'status' + (isErr ? ' err' : ''); }
@@ -1105,6 +1133,7 @@ roomJoinInput.addEventListener('input', () => {
 roomCreateInput.addEventListener('input', refreshCreateBtnState);
 roomNameCreateInput.addEventListener('input', refreshCreateBtnState);
 passwordCreateInput.addEventListener('input', refreshCreateBtnState);
+maxParticipantsCreateInput.addEventListener('input', refreshCreateBtnState);
 
 const roomSearchInput = document.getElementById('roomSearch');
 function applyRoomSearch(){
@@ -1151,7 +1180,7 @@ function renderRoomList(el, rooms, emptyText, isMine){
     const card = makeRoomCard(r.code, r.data, r.count, isMine);
     el.appendChild(card);
     const unsub = db.collection(ROOM_COLLECTION).doc(r.code).collection('peers')
-      .onSnapshot(psnap => { updateRoomCardCount(card, psnap.size); });
+      .onSnapshot(psnap => { updateRoomCardCount(card, psnap.size, r.data.maxParticipants); });
     roomListUnsubs.push(unsub);
   });
 }
@@ -1208,9 +1237,16 @@ async function refreshRoomLists(){
   }
   applyRoomSearch();
 }
-function updateRoomCardCount(card, count){
+function updateRoomCardCount(card, count, maxParticipants){
   const el = card.querySelector('.rc-count');
-  if (el) el.textContent = `${count}/${MAX_PARTICIPANTS} kishi`;
+  const max = Number.isFinite(maxParticipants) ? maxParticipants : DEFAULT_MAX_PARTICIPANTS;
+  const isPrivate = card.dataset.isPrivate === '1';
+  if (el) el.textContent = `${count}/${max} kishi · ${isPrivate ? 'Private' : 'Public'}`;
+  const badge = card.querySelector('.rc-status-badge');
+  if (badge){
+    badge.textContent = count > 0 ? 'FAOL' : "BO'SH";
+    badge.classList.toggle('active', count > 0);
+  }
 }
 async function countPeers(code){
   try{
@@ -1233,13 +1269,25 @@ function makeRoomCard(code, data, count, isMine){
   const card = document.createElement('div');
   card.className = 'room-card';
   const isPrivate = data.visibility === 'private';
+  card.dataset.isPrivate = isPrivate ? '1' : '0';
   const canManage = !!(isMine || isOwnedRoom(code, data));
   const title = roomDisplayName(code, data);
+  const roomMax = Number.isFinite(data.maxParticipants) ? data.maxParticipants : DEFAULT_MAX_PARTICIPANTS;
+  const peak = Number.isFinite(data.peakCount) ? data.peakCount : count;
   card.innerHTML = `
     <div class="rc-code">${escapeHtml(code)}</div>
     <div class="rc-meta">
-      <div class="rc-name">${escapeHtml(title)}</div>
-      <div class="rc-count">${count}/${MAX_PARTICIPANTS} kishi · ${isPrivate ? 'Private' : 'Public'}</div>
+      <div class="rc-name-row">
+        <span class="rc-name">${escapeHtml(title)}</span>
+        <span class="rc-status-badge ${count > 0 ? 'active' : ''}">${count > 0 ? 'FAOL' : "BO'SH"}</span>
+      </div>
+      <div class="rc-count">${count}/${roomMax} kishi · ${isPrivate ? 'Private' : 'Public'}</div>
+      <button type="button" class="rc-more-toggle">Ko'proq...</button>
+      <div class="rc-details">
+        <div class="rc-detail-row">Yaratilgan: <b>${fmtDT(data.createdAt)}</b></div>
+        <div class="rc-detail-row">Oxirgi kirish: <b>${fmtDT(data.lastJoinedAt)}</b></div>
+        <div class="rc-detail-row">Eng ko'p bo'lgani: <b>${peak} kishi</b></div>
+      </div>
     </div>
     <div class="rc-lock">${isPrivate ? lockSvg() : globeSvg()}</div>
     ${canManage ? `
@@ -1254,6 +1302,14 @@ function makeRoomCard(code, data, count, isMine){
       </div>
     ` : ''}
   `;
+  const moreToggle = card.querySelector('.rc-more-toggle');
+  const details = card.querySelector('.rc-details');
+  moreToggle.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const willOpen = !details.classList.contains('open');
+    details.classList.toggle('open', willOpen);
+    moreToggle.textContent = willOpen ? 'Kamroq' : "Ko'proq...";
+  });
   card.addEventListener('click', () => {
     document.querySelector('.tab-btn[data-tab="join"]').click();
     roomJoinInput.value = code;
@@ -1476,13 +1532,13 @@ async function requestMicUpfront(){
 micRetryJoinBtn.addEventListener('click', async () => {
   micRetryJoinTxt.textContent = 'SO\'RALYAPTI...';
   await requestMicUpfront();
-  micRetryJoinTxt.textContent = 'MIKROFONNI QAYTA SO\'RASH';
+  micRetryJoinTxt.textContent = 'MIKROFON RUXSATINI BROWSERDAN QAYTA SO\'RASH';
   if (micReady) setStatusJoin('Mikrofon tayyor');
 });
 micRetryCreateBtn.addEventListener('click', async () => {
   micRetryCreateTxt.textContent = 'SO\'RALYAPTI...';
   await requestMicUpfront();
-  micRetryCreateTxt.textContent = 'MIKROFONNI QAYTA SO\'RASH';
+  micRetryCreateTxt.textContent = 'MIKROFON RUXSATINI BROWSERDAN QAYTA SO\'RASH';
   if (micReady) setStatusCreate('Mikrofon tayyor');
 });
 window.addEventListener('DOMContentLoaded', () => {
@@ -1533,35 +1589,56 @@ function renderParticipants(){
 
   const meRow = document.createElement('div');
   meRow.className = 'prow';
-  const meSpeaking = !muted && speakingState[myId];
+  const meEffectivelyMuted = muted || forceMuted;
+  const meSpeaking = !meEffectivelyMuted && speakingState[myId];
+  const meStateLabel = forceMuted ? 'xona egasi o\'chirdi' : (muted ? 'mikrofon o\'chiq' : (meSpeaking ? 'gapiryapti' : 'tinglayapti'));
   meRow.innerHTML = `
     <div class="avatar" style="background:${colorFor(myId)}">${initialFor(myName)}</div>
     <div class="pinfo">
-      <div class="pname me-label">${escapeHtml(myName || 'Siz')}</div>
-      <div class="pstate ${muted ? 'invited' : (meSpeaking ? 'speaking' : 'listening')}">${muted ? 'mikrofon o\'chiq' : (meSpeaking ? 'gapiryapti' : 'tinglayapti')}</div>
+      <div class="pname me-label">${escapeHtml(myName || 'Siz')}${isRoomHost ? ' (host)' : ''}</div>
+      <div class="pstate ${meEffectivelyMuted ? 'invited' : (meSpeaking ? 'speaking' : 'listening')}">${meStateLabel}</div>
     </div>
-    <div class="picon" style="color:${muted ? 'var(--red)' : 'var(--text-dim)'}">${muted ? micOffSvg() : micSvg()}</div>
+    <div class="picon" style="color:${meEffectivelyMuted ? 'var(--red)' : 'var(--text-dim)'}">${meEffectivelyMuted ? micOffSvg() : micSvg()}</div>
   `;
   participantsEl.appendChild(meRow);
 
   Object.keys(peers).forEach(pid => {
     const p = peers[pid];
     const connected = p && p.pc && p.pc.connectionState === 'connected';
-    const speaking = connected && speakingState[pid];
+    const pMuted = !!peerMuted[pid] || !!peerForceMuted[pid];
+    const speaking = connected && !pMuted && speakingState[pid];
     const row = document.createElement('div');
     row.className = 'prow';
-    const stateLabel = !connected ? 'ulanmoqda...' : (speaking ? 'gapiryapti' : 'tinglayapti');
-    const stateClass = !connected ? 'invited' : (speaking ? 'speaking' : 'listening');
+    let stateLabel, stateClass;
+    if (!connected){ stateLabel = 'ulanmoqda...'; stateClass = 'invited'; }
+    else if (pMuted){ stateLabel = 'mikrofon o\'chiq'; stateClass = 'invited'; }
+    else { stateLabel = speaking ? 'gapiryapti' : 'tinglayapti'; stateClass = speaking ? 'speaking' : 'listening'; }
+    const micIconHtml = !connected ? inviteSvg() : (pMuted ? micOffSvg() : micSvg());
+    const micIconColor = pMuted ? 'var(--red)' : 'var(--text-dim)';
+    const hostMuteBtnHtml = (isRoomHost && connected) ? `
+      <button class="host-mute-btn" data-pid="${pid}" title="${pMuted ? 'Mikrofonini yoqish' : 'Mikrofonini o\'chirish'}" style="border:none;background:transparent;cursor:pointer;color:${pMuted ? 'var(--red)' : 'var(--text-dim)'};display:flex;align-items:center;padding:4px;flex-shrink:0;">
+        ${pMuted ? micOffSvg() : micSvg()}
+      </button>` : '';
     row.innerHTML = `
       <div class="avatar" style="background:${colorFor(pid)}">${initialFor(displayName(pid))}</div>
       <div class="pinfo">
         <div class="pname">${escapeHtml(displayName(pid))}</div>
         <div class="pstate ${stateClass}">${stateLabel}</div>
       </div>
-      <div class="picon" style="color:var(--text-dim)">${connected ? micSvg() : inviteSvg()}</div>
+      <div class="picon" style="color:${micIconColor}">${micIconHtml}</div>
+      ${hostMuteBtnHtml}
     `;
     participantsEl.appendChild(row);
   });
+
+  if (isRoomHost){
+    participantsEl.querySelectorAll('.host-mute-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const pid = btn.getAttribute('data-pid');
+        toggleForceMutePeer(pid);
+      });
+    });
+  }
 
   const n = Object.keys(peers).length + 1;
   stateTxt.textContent = (n <= 1) ? 'YOLG\'IZ XONADA' : n + ' KISHI XONADA';
@@ -1569,6 +1646,12 @@ function renderParticipants(){
 
 function escapeHtml(s){
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function fmtDT(ts){
+  if (!ts) return 'Nomaʼlum';
+  const d = new Date(ts);
+  const pad = n => String(n).padStart(2,'0');
+  return `${pad(d.getDate())}.${pad(d.getMonth()+1)}.${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 function watchSpeaking(pid, stream){
@@ -1742,15 +1825,65 @@ async function attachPresence(room, peersCol){
       const data = change.doc.data() || {};
       if (change.type === 'added'){
         peerNames[pid] = data.name || pid.slice(0,4);
+        peerMuted[pid] = !!data.muted;
+        peerForceMuted[pid] = !!data.forceMuted;
         establishPeer(room, pid);
       }
       if (change.type === 'modified'){
         peerNames[pid] = data.name || pid.slice(0,4);
+        peerMuted[pid] = !!data.muted;
+        peerForceMuted[pid] = !!data.forceMuted;
         renderParticipants();
       }
-      if (change.type === 'removed') teardownPeer(pid);
+      if (change.type === 'removed'){
+        delete peerMuted[pid];
+        delete peerForceMuted[pid];
+        teardownPeer(pid);
+      }
     });
   });
+}
+
+// --- Host xonaning egasi ekanini aniqlaydi, keyin har bir peer o'z hujjatini
+//     kuzatib turadi: agar host `forceMuted:true` qo'ysa, avtomatik o'zini mute qiladi ---
+function watchMyPeerDoc(){
+  if (!myPeerRef) return;
+  if (myPeerUnsub) { myPeerUnsub(); myPeerUnsub = null; }
+  myPeerUnsub = myPeerRef.onSnapshot((doc) => {
+    const data = doc.data();
+    if (!data) return;
+    const nowForceMuted = !!data.forceMuted;
+    if (nowForceMuted !== forceMuted){
+      forceMuted = nowForceMuted;
+      applyEffectiveMuteState();
+    }
+  });
+}
+
+// --- Haqiqiy audio track holatini muted OR forceMuted ga qarab yangilaydi ---
+function applyEffectiveMuteState(){
+  if (!localStream) return;
+  const effectivelyMuted = muted || forceMuted;
+  localStream.getAudioTracks().forEach(t => t.enabled = !effectivelyMuted);
+  muteIcon.innerHTML = effectivelyMuted ? MIC_OFF_ICON_INNER : MIC_ICON_INNER;
+  muteTxt.textContent = forceMuted ? 'MIKROFON: HOST O\'CHIRDI' : (muted ? 'MIKROFON: O\'CHIQ' : 'MIKROFON: OCHIQ');
+  muteBtn.classList.toggle('active', effectivelyMuted);
+  // Host meni o'chirib qo'ygan bo'lsa ham, men "yoqish" deb bosolmayman —
+  // faqat host qayta yoqishi mumkin. Lekin o'z holatimni (muted) tanlashim mumkin.
+  if (myPeerRef) myPeerRef.set({ muted }, { merge: true }).catch(()=>{});
+  if (joined) renderParticipants();
+}
+
+// --- Faqat host chaqiradi: boshqa foydalanuvchining mikrofonini majburan
+//     o'chiradi/yoqadi. Bu to'g'ridan-to'g'ri o'sha odamning trackini
+//     o'chirolmaydi (brauzer xavfsizligi) — signal yuboradi, o'sha client esa
+//     watchMyPeerDoc() orqali buni ko'rib avtomatik o'z trackini o'chiradi. ---
+async function toggleForceMutePeer(pid){
+  if (!isRoomHost || !roomRef) return;
+  const currentlyForceMuted = !!peerForceMuted[pid];
+  try{
+    await roomRef.collection('peers').doc(pid).set({ forceMuted: !currentlyForceMuted }, { merge: true });
+  }catch(e){}
 }
 
 // --- Tugma yuklanish holati yordamchisi ---
@@ -1805,21 +1938,33 @@ joinBtn.addEventListener('click', async () => {
   if (!(await ensureMic(setStatusJoin))){ setBtnLoading(joinBtn, false, '', 'QO\'SHILISH'); return; }
 
   // --- Transaction bilan sig'im tekshiruvi va joylashish (race condition oldini olish) ---
+  const roomMaxParticipants = Number.isFinite(roomData.maxParticipants) ? roomData.maxParticipants : DEFAULT_MAX_PARTICIPANTS;
   const peersCol = roomRef.collection('peers');
   const myPeerDoc = peersCol.doc(myId);
   try{
     await db.runTransaction(async (tx) => {
       const existing = await tx.get(peersCol);
-      if (existing.size >= MAX_PARTICIPANTS){
+      const roomSnapTx = await tx.get(roomRef);
+      if (existing.size >= roomMaxParticipants){
         throw new Error('ROOM_FULL:' + existing.size);
       }
-      existing.forEach(doc => { if (doc.id !== myId) peerNames[doc.id] = (doc.data().name || doc.id.slice(0,4)); });
-      tx.set(myPeerDoc, { joinedAt: Date.now(), name: enteredName });
+      existing.forEach(doc => {
+        if (doc.id !== myId){
+          const d = doc.data();
+          peerNames[doc.id] = (d.name || doc.id.slice(0,4));
+          peerMuted[doc.id] = !!d.muted;
+          peerForceMuted[doc.id] = !!d.forceMuted;
+        }
+      });
+      const newCount = existing.size + 1;
+      const prevPeak = (roomSnapTx.exists && Number.isFinite(roomSnapTx.data().peakCount)) ? roomSnapTx.data().peakCount : 0;
+      tx.set(myPeerDoc, { joinedAt: Date.now(), name: enteredName, muted: false, forceMuted: false });
+      tx.set(roomRef, { lastJoinedAt: Date.now(), peakCount: Math.max(prevPeak, newCount) }, { merge: true });
     });
   }catch(e){
     if (String(e.message).startsWith('ROOM_FULL')){
       const count = String(e.message).split(':')[1];
-      setStatusJoin(`Xona to'lgan (max ${MAX_PARTICIPANTS} kishi, hozir ${count}).`, true);
+      setStatusJoin(`Xona to'lgan (max ${roomMaxParticipants} kishi, hozir ${count}).`, true);
     } else {
       setStatusJoin('Firestore xatosi: ruxsat yo\'q. Rules\'ni tekshir!', true);
     }
@@ -1829,10 +1974,14 @@ joinBtn.addEventListener('click', async () => {
 
   myName = enteredName;
   myPeerRef = myPeerDoc;
+  isRoomHost = (roomData.createdBy === myId); // deyarli hech qachon true bo'lmaydi (join qiluvchi host emas), lekin xavfsizlik uchun tekshiramiz
+  muted = false;
+  forceMuted = false;
 
   setBtnLoading(joinBtn, false, '', 'QO\'SHILISH');
   enterCallScreen();
   attachPresence(room, peersCol);
+  watchMyPeerDoc();
 });
 
 createBtn.addEventListener('click', async () => {
@@ -1846,6 +1995,13 @@ createBtn.addEventListener('click', async () => {
   if (!roomName){ setStatusCreate('Xona nomini yozing!', true); return; }
   if (password && (password.length < 4 || password.length > 9)){
     setStatusCreate('Parol 4-9 belgi bo\'lsin (harf va raqam bo\'lishi mumkin).', true);
+    return;
+  }
+  let maxParticipants = parseInt(maxParticipantsCreateInput.value, 10);
+  if (!Number.isFinite(maxParticipants)) maxParticipants = DEFAULT_MAX_PARTICIPANTS;
+  maxParticipants = Math.round(maxParticipants);
+  if (maxParticipants < MIN_MAX_PARTICIPANTS || maxParticipants > MAX_MAX_PARTICIPANTS){
+    setStatusCreate(`Odam soni ${MIN_MAX_PARTICIPANTS} dan ${MAX_MAX_PARTICIPANTS} gacha bo'lsin.`, true);
     return;
   }
 
@@ -1872,7 +2028,10 @@ createBtn.addEventListener('click', async () => {
     createdAt: Date.now(),
     visibility: selectedVisibility,
     createdBy: myId,
-    createdByUid: (auth.currentUser && auth.currentUser.uid) || null
+    createdByUid: (auth.currentUser && auth.currentUser.uid) || null,
+    maxParticipants: maxParticipants,
+    lastJoinedAt: Date.now(),
+    peakCount: 1
   };
   if (password) payload.passwordHash = await sha256Hex(password);
   await roomRef.set(payload);
@@ -1886,11 +2045,15 @@ createBtn.addEventListener('click', async () => {
   const peersCol = roomRef.collection('peers');
   myName = enteredName;
   myPeerRef = peersCol.doc(myId);
-  await myPeerRef.set({ joinedAt: Date.now(), name: myName });
+  isRoomHost = true;
+  muted = false;
+  forceMuted = false;
+  await myPeerRef.set({ joinedAt: Date.now(), name: myName, muted: false, forceMuted: false });
 
   setBtnLoading(createBtn, false, '', 'XONA YARATISH');
   enterCallScreen();
   attachPresence(room, peersCol);
+  watchMyPeerDoc();
 });
 
 const COPY_ICON_INNER = '<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>';
@@ -1923,10 +2086,14 @@ async function leave(){
   joined = false;
   stopLogoReact();
   if (presenceUnsub){ presenceUnsub(); presenceUnsub = null; }
+  if (myPeerUnsub){ myPeerUnsub(); myPeerUnsub = null; }
   await cleanupAllSignals();
   Object.keys(peers).forEach(teardownPeer);
   if (myPeerRef){ await myPeerRef.delete().catch(()=>{}); myPeerRef = null; }
   roomRef = null;
+  isRoomHost = false;
+  muted = false;
+  forceMuted = false;
   setDot('');
   callScreenEl.style.display = 'none';
   lobbyEl.style.display = 'block';
@@ -1936,6 +2103,7 @@ async function leave(){
   roomJoinInput.value = '';
   roomCreateInput.value = '';
   roomNameCreateInput.value = '';
+  maxParticipantsCreateInput.value = DEFAULT_MAX_PARTICIPANTS;
   joinPassWrap.style.display = 'none';
   createdCodeBox.classList.remove('show');
   setStatusJoin('Ismingiz va xona kodini kiriting');
@@ -1969,12 +2137,13 @@ const MIC_OFF_ICON_INNER = '<line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3
 
 muteBtn.addEventListener('click', () => {
   if (!localStream) return;
+  if (forceMuted){
+    // Host meni o'chirib qo'ygan — o'zim yoqolmayman, faqat host qayta yoqa oladi.
+    setStatus('Xona egasi mikrofoningizni o\'chirib qo\'ygan.', true);
+    return;
+  }
   muted = !muted;
-  localStream.getAudioTracks().forEach(t => t.enabled = !muted);
-  muteIcon.innerHTML = muted ? MIC_OFF_ICON_INNER : MIC_ICON_INNER;
-  muteTxt.textContent = muted ? 'MIKROFON: O\'CHIQ' : 'MIKROFON: OCHIQ';
-  muteBtn.classList.toggle('active', muted);
-  if (joined) renderParticipants();
+  applyEffectiveMuteState();
 });
 
 window.addEventListener('beforeunload', () => {
