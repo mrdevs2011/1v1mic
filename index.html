@@ -2709,7 +2709,13 @@ joinBtn.addEventListener('click', async () => {
     });
     const newCount = alreadyIn ? existing.size : existing.size + 1;
     const prevPeak = Number.isFinite(roomData.peakCount) ? roomData.peakCount : 0;
-    await myPeerDoc.set({ joinedAt: Date.now(), name: enteredName, muted: false, forceMuted: false });
+    await myPeerDoc.set({
+      joinedAt: Date.now(),
+      name: enteredName,
+      muted: false,
+      forceMuted: false,
+      uid: (auth.currentUser && auth.currentUser.uid) || null
+    });
     await roomRef.set({
       lastJoinedAt: Date.now(),
       lastActivity: firebase.firestore.FieldValue.serverTimestamp(),
@@ -2812,7 +2818,13 @@ createBtn.addEventListener('click', async () => {
   muted = false;
   forceMuted = false;
   try{
-    await myPeerRef.set({ joinedAt: Date.now(), name: myName, muted: false, forceMuted: false });
+    await myPeerRef.set({
+      joinedAt: Date.now(),
+      name: myName,
+      muted: false,
+      forceMuted: false,
+      uid: (auth.currentUser && auth.currentUser.uid) || null
+    });
   }catch(e){
     console.error('create peer set:', e);
     setStatusCreate('Firestore xatosi (peer): ' + (e.code || e.message), true);
@@ -2820,7 +2832,8 @@ createBtn.addEventListener('click', async () => {
     return;
   }
 
-  saveRoomPass(password || '');
+  if (password) saveRoomPass(room, password);
+  else saveRoomPass(room, '');
   setBtnLoading(createBtn, false, '', 'XONA YARATISH');
   enterCallScreen();
   attachPresence(room, peersCol);
