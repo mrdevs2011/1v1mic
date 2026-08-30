@@ -1409,21 +1409,44 @@ document.getElementById('saveAccountBtn').addEventListener('click', async () => 
   if (!newName) { setStatusEl(st, "Ism bo'sh bo'lmasin", true); return; }
   if (!newUsername) { setStatusEl(st, "Username bo'sh bo'lmasin", true); return; }
 
+  console.log('=== SAVE DEBUG ===');
+  console.log('user.uid:', user.uid);
+  console.log('user.isAnonymous:', user.isAnonymous);
+  console.log('currentProfile (before):', JSON.stringify(currentProfile));
+  console.log('newName:', JSON.stringify(newName), 'len:', newName.length);
+  console.log('newUsername:', JSON.stringify(newUsername), 'len:', newUsername.length, 'regex_ok:', /^[a-z0-9_]+$/.test(newUsername));
+  console.log('oldUsername:', currentProfile ? currentProfile.username : undefined);
+
   try {
     const oldUsername = currentProfile.username;
     if (newUsername !== oldUsername) {
+      console.log('username changing:', oldUsername, '->', newUsername);
       const takenSnap = await db.collection('usernames').doc(newUsername).get();
+      console.log('takenSnap.exists:', takenSnap.exists);
       if (takenSnap.exists) { setStatusEl(st, 'Bu username band', true); return; }
+      console.log('writing usernames/' + newUsername, { uid: user.uid });
       await db.collection('usernames').doc(newUsername).set({ uid: user.uid });
-      if (oldUsername) await db.collection('usernames').doc(oldUsername).delete().catch(()=>{});
+      console.log('usernames write OK');
+      if (oldUsername) {
+        console.log('deleting usernames/' + oldUsername);
+        await db.collection('usernames').doc(oldUsername).delete().catch((e)=>console.error('old username delete failed:', e));
+      }
+    } else {
+      console.log('username unchanged, skipping usernames collection writes');
     }
     currentProfile.name = newName;
     currentProfile.username = newUsername;
-    await db.collection('users').doc(user.uid).update({ name: newName, username: newUsername });
+    const updatePayload = { name: newName, username: newUsername };
+    console.log('final update() call -> users/' + user.uid, JSON.stringify(updatePayload));
+    await db.collection('users').doc(user.uid).update(updatePayload);
+    console.log('users update OK');
     setStatusEl(st, 'Saqlandi');
     renderAccountView(user);
   } catch (err) {
-    console.error(err);
+    console.error('=== SAVE FAILED ===');
+    console.error('err.code:', err.code);
+    console.error('err.message:', err.message);
+    console.error('full err:', err);
     setStatusEl(st, 'Xatolik: ' + err.message, true);
   }
 });
