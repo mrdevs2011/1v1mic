@@ -44,8 +44,7 @@
   .rec-dot.live{ background:var(--green); box-shadow:0 0 8px var(--green), 0 0 16px var(--green); animation:pulse 1.4s infinite; }
   .rec-dot.pending{ background:var(--amber); box-shadow:0 0 8px var(--amber); animation:pulse .7s infinite; }
   @keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:.35;} }
-  .app-logo circle[stroke]{ animation:pulse 1.8s infinite; }
-  .app-logo circle:last-of-type{ animation-delay:.3s; }
+  .app-logo{ transition:filter .1s linear; }
   label{ font-size:10px; color:var(--text-dim); letter-spacing:2px; display:block; margin-bottom:6px; }
   .code-row{ display:flex; gap:8px; margin-bottom:14px; }
   input#roomJoin, input#roomCreate{
@@ -235,13 +234,13 @@
 <div class="rig">
   <div class="head">
     <div style="display:flex; align-items:center; gap:10px;">
-      <svg class="app-logo" viewBox="0 0 200 200" width="26" height="26" fill="none">
-        <circle cx="60" cy="100" r="14" stroke="#ff8a00" stroke-width="3"/>
-        <circle cx="140" cy="100" r="14" stroke="#6dff8a" stroke-width="3"/>
-        <path d="M78 100 Q100 78 122 100" stroke="#ff8a00" stroke-width="2.5" stroke-dasharray="4 5"/>
-        <path d="M78 100 Q100 122 122 100" stroke="#6dff8a" stroke-width="2.5" stroke-dasharray="4 5"/>
-        <circle cx="60" cy="100" r="5" fill="#ff8a00"/>
-        <circle cx="140" cy="100" r="5" fill="#6dff8a"/>
+      <svg class="app-logo" id="appLogo" viewBox="0 0 200 200" width="38" height="38" fill="none">
+        <circle id="logoRingL" cx="60" cy="100" r="14" stroke="#ff8a00" stroke-width="3"/>
+        <circle id="logoRingR" cx="140" cy="100" r="14" stroke="#6dff8a" stroke-width="3"/>
+        <path id="logoArcTop" d="M78 100 Q100 78 122 100" stroke="#ff8a00" stroke-width="2.5" stroke-dasharray="4 5"/>
+        <path id="logoArcBot" d="M78 100 Q100 122 122 100" stroke="#6dff8a" stroke-width="2.5" stroke-dasharray="4 5"/>
+        <circle id="logoDotL" cx="60" cy="100" r="5" fill="#ff8a00"/>
+        <circle id="logoDotR" cx="140" cy="100" r="5" fill="#6dff8a"/>
       </svg>
       <div>
         <h1>ALOQA XONASI</h1>
@@ -323,10 +322,6 @@
           <div class="empty-list">Hali xona yaratmagansiz</div>
         </div>
       </div>
-    </div>
-
-    <div class="howto">
-      <b>Qanday ishlaydi:</b> <b>Yaratish</b> bo'limida xona kodi, parol va ko'rinishni (Public/Private) belgilaysiz. Public xonalar kodi bilan birga "Xonalar" ro'yxatida hammaga ko'rinadi. Private xonaga faqat kodni bilgan odam kira oladi. <b>Qo'shilish</b> bo'limida esa faqat kodni kiritasiz.
     </div>
   </div>
 
@@ -1064,6 +1059,72 @@ function startMeter(stream){
     loop();
   }catch(e){}
 }
+let logoRAF = null;
+function logoLevelOf(an, data){
+  an.getByteFrequencyData(data);
+  const avg = data.reduce((a,b)=>a+b,0) / data.length;
+  return Math.min(1, avg / 90);
+}
+function startLogoReact(){
+  if (logoRAF) return;
+  const ringL = document.getElementById('logoRingL');
+  const ringR = document.getElementById('logoRingR');
+  const dotL = document.getElementById('logoDotL');
+  const dotR = document.getElementById('logoDotR');
+  const arcTop = document.getElementById('logoArcTop');
+  const arcBot = document.getElementById('logoArcBot');
+  const logo = document.getElementById('appLogo');
+  if (!ringL || !ringR) return;
+  function loop(){
+    let myLevel = 0;
+    if (!muted && analyser){
+      myLevel = logoLevelOf(analyser, new Uint8Array(analyser.frequencyBinCount));
+    }
+    let peerLevel = 0;
+    Object.values(peerAnalysers).forEach(a => {
+      if (!a) return;
+      const lvl = logoLevelOf(a.an, a.data);
+      if (lvl > peerLevel) peerLevel = lvl;
+    });
+
+    const rL = 14 + myLevel * 6;
+    const rR = 14 + peerLevel * 6;
+    ringL.setAttribute('r', rL.toFixed(1));
+    ringR.setAttribute('r', rR.toFixed(1));
+    dotL.setAttribute('r', (5 + myLevel * 3).toFixed(1));
+    dotR.setAttribute('r', (5 + peerLevel * 3).toFixed(1));
+    ringL.style.opacity = (0.55 + myLevel * 0.45).toFixed(2);
+    ringR.style.opacity = (0.55 + peerLevel * 0.45).toFixed(2);
+
+    const bow = 8 + Math.max(myLevel, peerLevel) * 14;
+    arcTop.setAttribute('d', `M78 100 Q100 ${100 - bow} 122 100`);
+    arcBot.setAttribute('d', `M78 100 Q100 ${100 + bow} 122 100`);
+
+    const glow = Math.max(myLevel, peerLevel);
+    logo.style.filter = glow > 0.08 ? `drop-shadow(0 0 ${(glow*5).toFixed(1)}px rgba(255,138,0,${(glow*0.7).toFixed(2)}))` : 'none';
+
+    logoRAF = requestAnimationFrame(loop);
+  }
+  loop();
+}
+function stopLogoReact(){
+  if (logoRAF){ cancelAnimationFrame(logoRAF); logoRAF = null; }
+  const ringL = document.getElementById('logoRingL');
+  const ringR = document.getElementById('logoRingR');
+  const dotL = document.getElementById('logoDotL');
+  const dotR = document.getElementById('logoDotR');
+  const arcTop = document.getElementById('logoArcTop');
+  const arcBot = document.getElementById('logoArcBot');
+  const logo = document.getElementById('appLogo');
+  if (ringL){ ringL.setAttribute('r','14'); ringL.style.opacity='1'; }
+  if (ringR){ ringR.setAttribute('r','14'); ringR.style.opacity='1'; }
+  if (dotL) dotL.setAttribute('r','5');
+  if (dotR) dotR.setAttribute('r','5');
+  if (arcTop) arcTop.setAttribute('d','M78 100 Q100 78 122 100');
+  if (arcBot) arcBot.setAttribute('d','M78 100 Q100 122 122 100');
+  if (logo) logo.style.filter = 'none';
+}
+
 function stopMeter(){
   if (meterRAF) cancelAnimationFrame(meterRAF);
   meterBars.forEach(b => { b.style.height = '3px'; b.style.background = 'var(--green-dim)'; });
@@ -1346,6 +1407,7 @@ function enterCallScreen(){
   setDot('live');
   setStatus('Xonaga kirdingiz. Boshqalarni kutyapmiz...');
   renderParticipants();
+  startLogoReact();
 }
 
 async function attachPresence(room, peersCol){
@@ -1523,6 +1585,7 @@ async function cleanupAllSignals(){
 
 async function leave(){
   joined = false;
+  stopLogoReact();
   if (presenceUnsub){ presenceUnsub(); presenceUnsub = null; }
   await cleanupAllSignals();
   Object.keys(peers).forEach(teardownPeer);
