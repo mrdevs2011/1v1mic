@@ -226,15 +226,26 @@
     width:min(280px, 72vw); height:min(280px, 72vw);
     border-radius:50%; object-fit:cover;
     box-shadow:0 12px 48px rgba(0,0,0,0.45), 0 0 0 4px rgba(255,255,255,0.12);
-    background:var(--bg2); animation: lbZoom .22s ease;
+    background:var(--bg2); animation: lbZoom .22s cubic-bezier(.34,1.56,.64,1);
   }
-  @keyframes lbZoom{ from{ transform:scale(0.85); opacity:0.6; } to{ transform:scale(1); opacity:1; } }
+  @keyframes lbZoom{ from{ transform:scale(0.4); opacity:0.4; } to{ transform:scale(1); opacity:1; } }
   .avatar-lightbox-close{
     position:absolute; top:18px; right:18px; width:40px; height:40px; border-radius:50%;
     border:none; background:rgba(255,255,255,0.12); color:#fff; font-size:22px; cursor:pointer;
     display:flex; align-items:center; justify-content:center; line-height:1;
   }
   .avatar-lightbox-close:hover{ background:rgba(255,255,255,0.22); }
+  .avatar-lightbox-big{
+    display:none;
+    width:min(280px, 72vw); height:min(280px, 72vw);
+    border-radius:50%;
+    align-items:center; justify-content:center;
+    font-family: var(--font); font-weight:700; color:#fff;
+    font-size:min(110px, 26vw); letter-spacing:0;
+    box-shadow:0 12px 48px rgba(0,0,0,0.45), 0 0 0 4px rgba(255,255,255,0.12);
+    animation: lbZoom .22s cubic-bezier(.34,1.56,.64,1);
+  }
+  .avatar-lightbox-big.open{ display:flex; }
   .signout-btn{
     width:100%; padding:14px; background:none; border:1px solid var(--red); color:var(--red);
     font-family:var(--font); font-weight:600; font-size:13px; letter-spacing:0; border-radius:var(--radius);
@@ -329,8 +340,11 @@
     font-family: var(--font); font-weight:600; font-size:16px; color:#fff;
     background-size:cover; background-position:center;
     box-shadow: 0 0 0 0 transparent;
-    transition: box-shadow .2s;
+    transition: box-shadow .15s, filter .15s;
+    will-change: transform;
+    cursor:pointer;
   }
+  .avatar:active{ filter:brightness(0.85); }
   .avatar.speaking-ring{
     box-shadow: 0 0 0 2.5px #2dd48a, 0 0 12px rgba(45, 212, 138, 0.35);
   }
@@ -387,10 +401,11 @@
     box-shadow:
       0 0 0 6px rgba(45, 212, 138, 0.12),
       0 10px 32px rgba(18, 168, 100, 0.45);
-    transition: transform .12s, box-shadow .2s, background .2s, filter .15s;
+    transition: background .2s, filter .15s;
+    will-change: transform, box-shadow;
   }
-  .vc-mic-btn:hover{ transform:scale(1.05); filter:brightness(1.05); }
-  .vc-mic-btn:active{ transform:scale(0.96); }
+  .vc-mic-btn:hover{ filter:brightness(1.05); }
+  .vc-mic-btn:active{ filter:brightness(0.94); }
   .vc-mic-btn.muted{
     background: linear-gradient(160deg, #5c6578 0%, #3d4454 100%);
     box-shadow: 0 8px 24px rgba(0,0,0,0.3);
@@ -689,10 +704,6 @@
         <div class="vc-subtitle" id="stateTxt">OFFLINE</div>
       </div>
       <div class="vc-header-actions">
-        <button type="button" class="vc-icon-btn" id="leaveTop" title="Chiqish">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          <span id="leaveTopTxt" style="display:none">CHIQISH</span>
-        </button>
       </div>
     </div>
 
@@ -729,6 +740,7 @@
   <div class="avatar-lightbox" id="avatarLightbox" aria-hidden="true">
     <button type="button" class="avatar-lightbox-close" id="avatarLightboxClose" aria-label="Yopish">&times;</button>
     <img class="avatar-lightbox-img" id="avatarLightboxImg" alt="Profil rasmi" />
+    <div class="avatar-lightbox-big" id="avatarLightboxBig"></div>
   </div>
 
 </div>
@@ -896,8 +908,6 @@ const myPrivateRoomListEl = document.getElementById('myPrivateRoomList');
 
 const mainBtn = document.getElementById('mainBtn');
 const mainBtnTxt = document.getElementById('mainBtnTxt');
-const leaveTopBtn = document.getElementById('leaveTop');
-const leaveTopTxt = document.getElementById('leaveTopTxt');
 const muteBtn = document.getElementById('muteBtn');
 const muteIcon = document.getElementById('muteIcon');
 const muteTxt = document.getElementById('muteTxt');
@@ -1014,6 +1024,17 @@ let audioCtx, analyser, meterRAF;
 let joined = false;
 let roomRef = null;
 let myPeerRef = null;
+let heartbeatTimer = null;
+
+function startHeartbeat(){
+  stopHeartbeat();
+  heartbeatTimer = setInterval(() => {
+    if (myPeerRef) myPeerRef.set({ lastSeen: Date.now() }, { merge: true }).catch(()=>{});
+  }, 8000); // 8s da bir marta "men tirikman" deb belgi qo'yadi
+}
+function stopHeartbeat(){
+  if (heartbeatTimer){ clearInterval(heartbeatTimer); heartbeatTimer = null; }
+}
 let myPeerUnsub = null;
 let presenceUnsub = null;
 let isRoomHost = false;
@@ -1441,22 +1462,43 @@ function bindAvatarPicker(fileEl){
 bindAvatarPicker(accAvatarFileEl);
 bindAvatarPicker(document.getElementById('guestAvatarFile'));
 
-function openAvatarLightbox(url){
-  if (!url) return;
+function openAvatarLightbox(opts){
+  // Orqaga moslik: eski chaqiruvlar to'g'ridan-to'g'ri url string yuborardi
+  if (typeof opts === 'string') opts = { url: opts };
+  if (!opts || (!opts.url && !opts.letter)) return;
   const lb = document.getElementById('avatarLightbox');
   const img = document.getElementById('avatarLightboxImg');
-  if (!lb || !img) return;
-  img.src = url;
+  const big = document.getElementById('avatarLightboxBig');
+  if (!lb || !img || !big) return;
+  // avval eskisini tozalab, animatsiya qayta ishga tushishi uchun qayta chizamiz
+  img.classList.remove('open');
+  big.classList.remove('open');
+  void lb.offsetWidth; // reflow — animatsiyani qayta trigger qilish uchun
+  if (opts.url){
+    img.src = opts.url;
+    img.classList.add('open');
+    img.style.display = '';
+    big.style.display = 'none';
+  } else {
+    big.textContent = opts.letter || '?';
+    big.style.background = opts.color || colorForProfile(opts.letter || 'x');
+    big.classList.add('open');
+    big.style.display = 'flex';
+    img.style.display = 'none';
+    img.src = '';
+  }
   lb.classList.add('open');
   lb.setAttribute('aria-hidden', 'false');
 }
 function closeAvatarLightbox(){
   const lb = document.getElementById('avatarLightbox');
   const img = document.getElementById('avatarLightboxImg');
+  const big = document.getElementById('avatarLightboxBig');
   if (!lb) return;
   lb.classList.remove('open');
   lb.setAttribute('aria-hidden', 'true');
-  if (img) img.src = '';
+  if (img){ img.src = ''; img.style.display = ''; }
+  if (big){ big.style.display = 'none'; big.textContent = ''; }
 }
 document.getElementById('avatarLightboxClose')?.addEventListener('click', (e) => {
   e.stopPropagation();
@@ -2092,40 +2134,84 @@ function startMeter(stream){
 let logoRAF = null;
 let logoSmoothMy = 0;
 let logoSmoothPeer = 0;
+let micBtnSmooth = 0;
+let avatarMeSmooth = 0;
+const peerLevelSmooth = {};
+
 function logoLevelOf(an, data){
   an.getByteFrequencyData(data);
   const avg = data.reduce((a,b)=>a+b,0) / data.length;
   return Math.min(1, avg / 90);
 }
+// Telegram-style tez ko'tarilib, sekinroq tushadigan silliqlash — sezgir (sensitive) tuyulishi uchun
+function smoothTo(current, target, attack, release){
+  return target > current ? current + (target - current) * attack : current + (target - current) * release;
+}
+
 function startLogoReact(){
   if (logoRAF) return;
   const logo = document.getElementById('appLogo');
-  if (!logo) return;
   logoSmoothMy = 0;
   logoSmoothPeer = 0;
+  micBtnSmooth = 0;
+  avatarMeSmooth = 0;
   function loop(){
     if (document.hidden){
       logoRAF = requestAnimationFrame(loop);
       return;
     }
-    let targetMy = 0;
-    if (!muted && !forceMuted && analyser){
-      targetMy = logoLevelOf(analyser, new Uint8Array(analyser.frequencyBinCount));
+    // --- Mening ovozim: mavjud smoothLevel'dan foydalanamiz (Siri-to'lqin bilan bir xil manba, allaqachon silliq) ---
+    const myLevel = (!muted && !forceMuted) ? smoothLevel : 0;
+    logoSmoothMy += (myLevel - logoSmoothMy) * 0.08;
+    micBtnSmooth = smoothTo(micBtnSmooth, myLevel, 0.3, 0.09);
+    avatarMeSmooth = smoothTo(avatarMeSmooth, myLevel, 0.3, 0.09);
+
+    // --- Mic tugma: ovoz balandligiga qarab pulsatsiya (Telegram uslubida yumshoq halqa) ---
+    if (muteBtn){
+      const s = 1 + micBtnSmooth * 0.16;
+      muteBtn.style.transform = 'scale(' + s.toFixed(3) + ')';
+      if (muted || forceMuted){
+        muteBtn.style.boxShadow = '';
+      } else {
+        const ringSpread = (6 + micBtnSmooth * 16).toFixed(1);
+        const ringAlpha = (0.12 + micBtnSmooth * 0.28).toFixed(2);
+        muteBtn.style.boxShadow =
+          '0 0 0 ' + ringSpread + 'px rgba(45, 212, 138, ' + ringAlpha + '), ' +
+          '0 10px 32px rgba(18, 168, 100, 0.45)';
+      }
     }
+    // --- Mening avatarim: gapirganda kattalashadi ---
+    const avatarMe = document.getElementById('avatar-me');
+    if (avatarMe) avatarMe.style.transform = 'scale(' + (1 + avatarMeSmooth * 0.24).toFixed(3) + ')';
+
+    // --- Xonadagi har bir ishtirokchi: o'z ovoz balandligiga qarab avatar kattalashadi/kichrayadi ---
     let targetPeer = 0;
-    Object.values(peerAnalysers).forEach(a => {
+    Object.keys(peerAnalysers).forEach(pid => {
+      const a = peerAnalysers[pid];
       if (!a) return;
       const lvl = logoLevelOf(a.an, a.data);
       if (lvl > targetPeer) targetPeer = lvl;
+      const pMuted = !!peerMuted[pid] || !!peerForceMuted[pid];
+      const effLvl = pMuted ? 0 : lvl;
+      const prev = peerLevelSmooth[pid] || 0;
+      peerLevelSmooth[pid] = smoothTo(prev, effLvl, 0.3, 0.09);
+      const avEl = document.getElementById('avatar-' + pid);
+      if (avEl) avEl.style.transform = 'scale(' + (1 + peerLevelSmooth[pid] * 0.24).toFixed(3) + ')';
     });
-    logoSmoothMy += (targetMy - logoSmoothMy) * 0.08;
+    // Xonani tark etgan peer'larning eski smooth qiymatlarini tozalab boramiz
+    Object.keys(peerLevelSmooth).forEach(pid => {
+      if (!peerAnalysers[pid]) delete peerLevelSmooth[pid];
+    });
+
     logoSmoothPeer += (targetPeer - logoSmoothPeer) * 0.08;
     const glow = Math.max(logoSmoothMy, logoSmoothPeer);
-    const scale = 1 + glow * 0.08;
-    logo.style.transform = 'scale(' + scale.toFixed(3) + ')';
-    logo.style.filter = glow > 0.05
-      ? 'drop-shadow(0 0 ' + (glow * 8).toFixed(1) + 'px rgba(59,130,246,' + (0.35 + glow * 0.45).toFixed(2) + '))'
-      : 'none';
+    if (logo){
+      const scale = 1 + glow * 0.08;
+      logo.style.transform = 'scale(' + scale.toFixed(3) + ')';
+      logo.style.filter = glow > 0.05
+        ? 'drop-shadow(0 0 ' + (glow * 8).toFixed(1) + 'px rgba(59,130,246,' + (0.35 + glow * 0.45).toFixed(2) + '))'
+        : 'none';
+    }
     logoRAF = requestAnimationFrame(loop);
   }
   loop();
@@ -2137,6 +2223,12 @@ function stopLogoReact(){
     logo.style.filter = 'none';
     logo.style.transform = 'scale(1)';
   }
+  if (muteBtn){
+    muteBtn.style.transform = 'scale(1)';
+    muteBtn.style.boxShadow = '';
+  }
+  document.querySelectorAll('.avatar').forEach(el => { el.style.transform = 'scale(1)'; });
+  Object.keys(peerLevelSmooth).forEach(k => delete peerLevelSmooth[k]);
 }
 
 function stopMeter(){
@@ -2226,6 +2318,7 @@ function displayName(pid){
 
 const speakingState = {};
 const peerAnalysers = {};
+const peerAvatars = {};
 
 function micSvg(){
   return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>';
@@ -2246,17 +2339,27 @@ function checkSvg(){
   return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
 }
 
+function avatarStyleAttr(url, color){
+  return url
+    ? `background-image:url('${url.replace(/'/g, "%27")}');background-color:${color}`
+    : `background:${color}`;
+}
+function avatarInnerHtml(url, letter){
+  return url ? '' : letter;
+}
+
 function renderParticipants(){
   participantsEl.innerHTML = '';
   if (!joined) { stateTxt.textContent = 'OFFLINE'; return; }
 
+  const myAvatarUrl = currentAvatarUrl();
   const meRow = document.createElement('div');
   meRow.className = 'prow';
   const meEffectivelyMuted = muted || forceMuted;
   const meSpeaking = !meEffectivelyMuted && speakingState[myId];
   const meStateLabel = forceMuted ? 'host o\'chirdi' : (muted ? 'mikrofon o\'chiq' : (meSpeaking ? 'gapiryapti' : 'tinglayapti'));
   meRow.innerHTML = `
-    <div class="avatar ${meSpeaking ? 'speaking-ring' : ''}" style="background:${colorFor(myId)}">${initialFor(myName)}</div>
+    <div id="avatar-me" data-pid="me" class="avatar ${meSpeaking ? 'speaking-ring' : ''}" style="${avatarStyleAttr(myAvatarUrl, colorFor(myId))}">${avatarInnerHtml(myAvatarUrl, initialFor(myName))}</div>
     <div class="pinfo">
       <div class="pname me-label">${escapeHtml(myName || 'Siz')}${isRoomHost ? ' · host' : ''}</div>
       <div class="pstate ${meEffectivelyMuted ? 'invited' : (meSpeaking ? 'speaking' : 'listening')}">${meStateLabel}</div>
@@ -2281,8 +2384,9 @@ function renderParticipants(){
       <button class="host-mute-btn" data-pid="${pid}" title="${pMuted ? 'Mikrofonini yoqish' : 'Mikrofonini o\'chirish'}" style="border:none;background:transparent;cursor:pointer;color:${pMuted ? '#e85d5d' : '#8b93a7'};display:flex;align-items:center;padding:4px;flex-shrink:0;">
         ${pMuted ? micOffSvg() : micSvg()}
       </button>` : '';
+    const pAvatarUrl = peerAvatars[pid] || null;
     row.innerHTML = `
-      <div class="avatar ${speaking ? 'speaking-ring' : ''}" style="background:${colorFor(pid)}">${initialFor(displayName(pid))}</div>
+      <div id="avatar-${pid}" data-pid="${pid}" class="avatar ${speaking ? 'speaking-ring' : ''}" style="${avatarStyleAttr(pAvatarUrl, colorFor(pid))}">${avatarInnerHtml(pAvatarUrl, initialFor(displayName(pid)))}</div>
       <div class="pinfo">
         <div class="pname">${escapeHtml(displayName(pid))}</div>
         <div class="pstate ${stateClass}">${stateLabel}</div>
@@ -2305,6 +2409,23 @@ function renderParticipants(){
   const n = Object.keys(peers).length + 1;
   stateTxt.textContent = (n <= 1) ? '1 online' : n + ' online';
 }
+
+// Avatarga bosilganda kattalashtirib ko'rsatish (delegatsiya — har render'da qayta bind qilish shart emas)
+participantsEl.addEventListener('click', (e) => {
+  const el = e.target.closest('.avatar');
+  if (!el) return;
+  const pid = el.getAttribute('data-pid');
+  if (!pid) return;
+  if (pid === 'me'){
+    const url = currentAvatarUrl();
+    if (url) openAvatarLightbox({ url });
+    else openAvatarLightbox({ color: colorFor(myId), letter: initialFor(myName) });
+  } else {
+    const url = peerAvatars[pid] || null;
+    if (url) openAvatarLightbox({ url });
+    else openAvatarLightbox({ color: colorFor(pid), letter: initialFor(displayName(pid)) });
+  }
+});
 
 function escapeHtml(s){
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -2483,7 +2604,30 @@ function enterCallScreen(){
   if (roomRef && roomRef.id) setRoomInUrl(roomRef.id);
 }
 
+let janitorTimer = null;
+function startJanitor(peersCol){
+  stopJanitor();
+  const STALE_MS = 20000;
+  janitorTimer = setInterval(async () => {
+    try{
+      const snap = await peersCol.get();
+      const now = Date.now();
+      const dead = snap.docs.filter(d => {
+        if (d.id === myId) return false;
+        const data = d.data();
+        const lastSeen = data.lastSeen || data.joinedAt || 0;
+        return (now - lastSeen) > STALE_MS;
+      });
+      await Promise.all(dead.map(d => peersCol.doc(d.id).delete().catch(()=>{})));
+    }catch(e){ /* jim tur, keyingi tick urinib ko'radi */ }
+  }, 15000);
+}
+function stopJanitor(){
+  if (janitorTimer){ clearInterval(janitorTimer); janitorTimer = null; }
+}
+
 async function attachPresence(room, peersCol){
+  startJanitor(peersCol);
   presenceUnsub = peersCol.onSnapshot((snap) => {
     snap.docChanges().forEach((change) => {
       const pid = change.doc.id;
@@ -2491,17 +2635,20 @@ async function attachPresence(room, peersCol){
       const data = change.doc.data() || {};
       if (change.type === 'added'){
         peerNames[pid] = data.name || pid.slice(0,4);
+        peerAvatars[pid] = data.avatar || null;
         peerMuted[pid] = !!data.muted;
         peerForceMuted[pid] = !!data.forceMuted;
         establishPeer(room, pid);
       }
       if (change.type === 'modified'){
         peerNames[pid] = data.name || pid.slice(0,4);
+        peerAvatars[pid] = data.avatar || null;
         peerMuted[pid] = !!data.muted;
         peerForceMuted[pid] = !!data.forceMuted;
         renderParticipants();
       }
       if (change.type === 'removed'){
+        delete peerAvatars[pid];
         delete peerMuted[pid];
         delete peerForceMuted[pid];
         teardownPeer(pid);
@@ -2630,23 +2777,41 @@ joinBtn.addEventListener('click', async () => {
   try{
     const existing = await peersCol.get();
     const alreadyIn = existing.docs.some(d => d.id === myId);
-    if (!alreadyIn && existing.size >= roomMaxParticipants){
-      failJoin(`Xona to'lgan (max ${roomMaxParticipants} kishi, hozir ${existing.size}).`);
-      return;
-    }
+    const myUid = (auth.currentUser && auth.currentUser.uid) || null;
+    const ghostDocs = []; // shu uid'ga tegishli, lekin myId'dan farqli — avvalgi session qoldig'i (ghost)
+    const STALE_MS = 20000; // 20s dan ortiq heartbeat kelmagan har qanday peer ham "o'lik" hisoblanadi
+    const now = Date.now();
     existing.forEach(doc => {
       if (doc.id !== myId){
         const d = doc.data();
+        const isSameUser = myUid && d.uid === myUid;
+        const lastSeen = d.lastSeen || d.joinedAt || 0;
+        const isStale = (now - lastSeen) > STALE_MS;
+        if (isSameUser || isStale){
+          ghostDocs.push(doc.id); // ghost — ro'yxatga qo'shmaymiz, keyin o'chiramiz
+          return;
+        }
         peerNames[doc.id] = (d.name || doc.id.slice(0,4));
+        peerAvatars[doc.id] = d.avatar || null;
         peerMuted[doc.id] = !!d.muted;
         peerForceMuted[doc.id] = !!d.forceMuted;
       }
     });
-    const newCount = alreadyIn ? existing.size : existing.size + 1;
+    if (ghostDocs.length){
+      await Promise.all(ghostDocs.map(id => peersCol.doc(id).delete().catch(()=>{})));
+    }
+    const liveCount = existing.size - ghostDocs.length;
+    if (!alreadyIn && liveCount >= roomMaxParticipants){
+      failJoin(`Xona to'lgan (max ${roomMaxParticipants} kishi, hozir ${liveCount}).`);
+      return;
+    }
+    const newCount = alreadyIn ? liveCount : liveCount + 1;
     const prevPeak = Number.isFinite(roomData.peakCount) ? roomData.peakCount : 0;
     await myPeerDoc.set({
       joinedAt: Date.now(),
+      lastSeen: Date.now(),
       name: enteredName,
+      avatar: currentAvatarUrl() || null,
       muted: false,
       forceMuted: false,
       uid: (auth.currentUser && auth.currentUser.uid) || null
@@ -2674,6 +2839,7 @@ joinBtn.addEventListener('click', async () => {
   enterCallScreen();
   attachPresence(room, peersCol);
   watchMyPeerDoc();
+  startHeartbeat();
 });
 
 createBtn.addEventListener('click', async () => {
@@ -2754,7 +2920,9 @@ createBtn.addEventListener('click', async () => {
   try{
     await myPeerRef.set({
       joinedAt: Date.now(),
+      lastSeen: Date.now(),
       name: myName,
+      avatar: currentAvatarUrl() || null,
       muted: false,
       forceMuted: false,
       uid: (auth.currentUser && auth.currentUser.uid) || null
@@ -2772,6 +2940,7 @@ createBtn.addEventListener('click', async () => {
   enterCallScreen();
   attachPresence(room, peersCol);
   watchMyPeerDoc();
+  startHeartbeat();
 });
 
 const COPY_ICON_INNER = '<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>';
@@ -2815,6 +2984,8 @@ async function cleanupAllSignals(){
 async function leave(){
   joined = false;
   stopLogoReact();
+  stopHeartbeat();
+  stopJanitor();
   if (presenceUnsub){ presenceUnsub(); presenceUnsub = null; }
   if (myPeerUnsub){ myPeerUnsub(); myPeerUnsub = null; }
   await cleanupAllSignals();
@@ -2846,7 +3017,6 @@ async function leave(){
 
 // --- Chiqish: bir marta bosish bilan xonadan chiqadi ---
 mainBtn.addEventListener('click', () => leave());
-leaveTopBtn.addEventListener('click', () => leave());
 
 const MIC_ICON_INNER = '<path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/>';
 const MIC_OFF_ICON_INNER = '<line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/>';
