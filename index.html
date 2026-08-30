@@ -1,1 +1,315 @@
-.
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ALOQA LINIYASI — Firebase</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+  :root{
+    --bg: #0b0d0a;
+    --bg2: #12150f;
+    --line: #2a3324;
+    --amber: #ff8a00;
+    --amber-dim: #7a4200;
+    --green: #6dff8a;
+    --green-dim: #1f4a2a;
+    --red: #ff4a4a;
+    --text: #d9e0cc;
+    --text-dim: #6b7563;
+    --font: 'Courier New', ui-monospace, 'SF Mono', monospace;
+  }
+  *{ box-sizing:border-box; }
+  body{
+    margin:0; min-height:100vh;
+    background:
+      radial-gradient(ellipse at 30% -10%, #1a1f13 0%, transparent 60%),
+      repeating-linear-gradient(0deg, rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 3px),
+      var(--bg);
+    color:var(--text); font-family:var(--font);
+    display:flex; align-items:center; justify-content:center; padding:24px;
+  }
+  .rig{
+    width:100%; max-width:420px;
+    background:linear-gradient(180deg, var(--bg2), #0d0f0a);
+    border:1px solid var(--line); border-radius:6px;
+    box-shadow:0 0 0 1px rgba(0,0,0,0.6), 0 30px 60px -20px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.03);
+    padding:22px; position:relative; overflow:hidden;
+  }
+  .rig::before{
+    content:''; position:absolute; inset:0;
+    background:repeating-linear-gradient(90deg, rgba(255,138,0,0.03) 0 2px, transparent 2px 4px);
+    pointer-events:none;
+  }
+  .head{ display:flex; justify-content:space-between; align-items:flex-start; border-bottom:1px dashed var(--line); padding-bottom:14px; margin-bottom:18px; letter-spacing:1px; }
+  .head h1{ font-size:15px; margin:0; color:var(--amber); font-weight:700; letter-spacing:3px; }
+  .head .tag{ font-size:9px; color:var(--text-dim); margin-top:4px; letter-spacing:2px; }
+  .rec-dot{ width:8px; height:8px; border-radius:50%; background:var(--text-dim); margin-top:3px; transition:all .3s; }
+  .rec-dot.live{ background:var(--green); box-shadow:0 0 8px var(--green), 0 0 16px var(--green); animation:pulse 1.4s infinite; }
+  .rec-dot.pending{ background:var(--amber); box-shadow:0 0 8px var(--amber); animation:pulse .7s infinite; }
+  @keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:.35;} }
+  label{ font-size:10px; color:var(--text-dim); letter-spacing:2px; display:block; margin-bottom:6px; }
+  .code-row{ display:flex; gap:8px; margin-bottom:18px; }
+  input#room{
+    flex:1; background:#080a06; border:1px solid var(--line); color:var(--amber);
+    font-family:var(--font); font-size:20px; letter-spacing:6px; text-align:center;
+    padding:12px 8px; border-radius:4px; outline:none; text-transform:uppercase;
+  }
+  input#room:focus{ border-color:var(--amber-dim); }
+  .meter{ display:flex; gap:3px; align-items:flex-end; height:28px; margin:14px 0 4px; justify-content:center; }
+  .meter span{ width:4px; background:var(--green-dim); border-radius:2px; transition:height .08s ease, background .2s; }
+  .status{ text-align:center; font-size:11px; letter-spacing:1px; color:var(--text-dim); min-height:16px; margin-bottom:16px; }
+  .btn-main{
+    width:100%; padding:18px; background:linear-gradient(180deg, #1a2015, #0f130c);
+    border:1px solid var(--green-dim); color:var(--green); font-family:var(--font);
+    font-weight:700; font-size:14px; letter-spacing:3px; border-radius:5px; cursor:pointer; transition:all .15s;
+  }
+  .btn-main:hover{ border-color:var(--green); box-shadow:0 0 20px -6px var(--green); }
+  .btn-main:active{ transform:scale(0.98); }
+  .btn-main.on{ background:linear-gradient(180deg, #2a1000, #150800); border-color:var(--red); color:var(--red); }
+  .btn-main.on:hover{ box-shadow:0 0 20px -6px var(--red); }
+  .btn-main:disabled{ opacity:.5; cursor:wait; }
+  .foot{ display:flex; justify-content:space-between; align-items:center; margin-top:16px; font-size:9px; color:var(--text-dim); letter-spacing:1px; }
+  .mute-btn{ background:none; border:1px solid var(--line); color:var(--text-dim); font-family:var(--font); font-size:9px; letter-spacing:1px; padding:6px 10px; border-radius:4px; cursor:pointer; }
+  .mute-btn.active{ color:var(--amber); border-color:var(--amber-dim); }
+  .howto{ margin-top:14px; padding-top:14px; border-top:1px dashed var(--line); font-size:10px; line-height:1.6; color:var(--text-dim); }
+  .howto b{ color:var(--text); }
+  .err{ color:var(--red); }
+</style>
+</head>
+<body>
+
+<div class="rig">
+  <div class="head">
+    <div>
+      <h1>ALOQA LINIYASI</h1>
+      <div class="tag">FIREBASE ORQALI — 2 KISHILIK KANAL</div>
+    </div>
+    <div class="rec-dot" id="dot"></div>
+  </div>
+
+  <label for="room">XONA KODI (ikkalangiz bir xilini yozing)</label>
+  <div class="code-row">
+    <input id="room" maxlength="8" placeholder="MASALAN 1234" />
+  </div>
+
+  <div class="meter" id="meter"></div>
+
+  <div class="status" id="status">Xona kodini kiriting va ULASH bosing</div>
+
+  <button class="btn-main" id="mainBtn">ULASH</button>
+
+  <div class="foot">
+    <button class="mute-btn" id="muteBtn">🎙 MIKROFON: OCHIQ</button>
+    <span id="stateTxt">OFFLINE</span>
+  </div>
+
+  <div class="howto">
+    <b>Qanday ishlaydi:</b> ikkalangiz shu sahifani ochasiz, bitta xona kodini kelishasiz, ikkalangiz ham ULASH bosasiz. Signal Firebase Firestore orqali almashinadi, keyin ovoz to'g'ridan-to'g'ri (P2P) oqadi. Uzish uchun tugmani qayta bos.
+  </div>
+</div>
+
+<audio id="remoteAudio" autoplay playsinline></audio>
+
+<script>
+// ====== FIREBASE CONFIG (sening loyihang) ======
+const firebaseConfig = {
+  apiKey: "AIzaSyDojQ1RXFNgL3DYkA7MxU3zlMQS6UQnRMc",
+  authDomain: "v1mic-9544a.firebaseapp.com",
+  projectId: "v1mic-9544a",
+  storageBucket: "v1mic-9544a.firebasestorage.app",
+  messagingSenderId: "396038389625",
+  appId: "1:396038389625:web:e86831fca56c8a13abf9a8"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const ROOM_COLLECTION = 'aloqa-liniyasi-rooms';
+
+const roomInput = document.getElementById('room');
+const mainBtn = document.getElementById('mainBtn');
+const muteBtn = document.getElementById('muteBtn');
+const statusEl = document.getElementById('status');
+const stateTxt = document.getElementById('stateTxt');
+const dot = document.getElementById('dot');
+const remoteAudio = document.getElementById('remoteAudio');
+const meterEl = document.getElementById('meter');
+
+for(let i=0;i<20;i++){
+  const b = document.createElement('span');
+  b.style.height = '3px';
+  meterEl.appendChild(b);
+}
+const meterBars = [...meterEl.children];
+
+let pc = null;
+let localStream = null;
+let unsub = null;
+let connected = false;
+let muted = false;
+let audioCtx, analyser, meterRAF;
+let currentDocRef = null;
+
+function setStatus(text, isErr){ statusEl.textContent = text; statusEl.className = 'status' + (isErr ? ' err' : ''); }
+function setDot(mode){ dot.className = 'rec-dot' + (mode ? ' ' + mode : ''); }
+
+async function waitIceComplete(peer){
+  if (peer.iceGatheringState === 'complete') return;
+  await new Promise(resolve => {
+    function check(){
+      if (peer.iceGatheringState === 'complete'){
+        peer.removeEventListener('icegatheringstatechange', check);
+        resolve();
+      }
+    }
+    peer.addEventListener('icegatheringstatechange', check);
+    setTimeout(resolve, 4000);
+  });
+}
+
+function startMeter(stream){
+  try{
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const src = audioCtx.createMediaStreamSource(stream);
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 64;
+    src.connect(analyser);
+    const data = new Uint8Array(analyser.frequencyBinCount);
+    function loop(){
+      analyser.getByteFrequencyData(data);
+      const avg = data.reduce((a,b)=>a+b,0) / data.length;
+      const activeBars = Math.min(meterBars.length, Math.round((avg/255) * meterBars.length * 1.6));
+      meterBars.forEach((bar, i) => {
+        if (i < activeBars){
+          bar.style.height = (10 + Math.random()*18) + 'px';
+          bar.style.background = 'var(--green)';
+        } else {
+          bar.style.height = '3px';
+          bar.style.background = 'var(--green-dim)';
+        }
+      });
+      meterRAF = requestAnimationFrame(loop);
+    }
+    loop();
+  }catch(e){}
+}
+
+function stopMeter(){
+  if (meterRAF) cancelAnimationFrame(meterRAF);
+  meterBars.forEach(b => { b.style.height = '3px'; b.style.background = 'var(--green-dim)'; });
+  if (audioCtx) audioCtx.close().catch(()=>{});
+}
+
+async function connect(){
+  const room = roomInput.value.trim().toUpperCase();
+  if (!room){ setStatus('Avval xona kodini yoz, bratan!'); return; }
+
+  mainBtn.disabled = true;
+  setStatus('Mikrofonga ruxsat so\'ralyapti...');
+  setDot('pending');
+
+  try{
+    localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  }catch(e){
+    setStatus('Mikrofon ruxsati berilmadi.', true);
+    setDot(''); mainBtn.disabled = false;
+    return;
+  }
+  startMeter(localStream);
+
+  pc = new RTCPeerConnection({
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' }
+    ]
+  });
+  localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+  pc.ontrack = (e) => { remoteAudio.srcObject = e.streams[0]; };
+  pc.onconnectionstatechange = () => {
+    stateTxt.textContent = pc.connectionState.toUpperCase();
+    if (pc.connectionState === 'connected'){
+      connected = true;
+      setDot('live');
+      setStatus('ULANDI — gaplashavering! 🎙️');
+      mainBtn.textContent = 'UZISH';
+      mainBtn.classList.add('on');
+      mainBtn.disabled = false;
+    }
+    if (['disconnected','failed','closed'].includes(pc.connectionState) && connected){
+      setStatus('Aloqa uzildi.');
+      disconnect();
+    }
+  };
+
+  currentDocRef = db.collection(ROOM_COLLECTION).doc(room);
+
+  let snap;
+  try{
+    snap = await currentDocRef.get();
+  }catch(e){
+    setStatus('Firestore xatosi: ruxsat yo\'q. Rules\'ni tekshir!', true);
+    mainBtn.disabled = false;
+    return;
+  }
+  const data = snap.exists ? snap.data() : null;
+
+  if (!data || !data.offer || (data.offer && data.answer)){
+    // Bo'sh yoki eskirgan xona — men CALLER bo'laman
+    await currentDocRef.set({ offer: null, answer: null, ts: Date.now() });
+    setStatus('Signal yuborildi... do\'stingiz ham ULASH bossin 📡');
+
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    await waitIceComplete(pc);
+    await currentDocRef.update({ offer: JSON.stringify(pc.localDescription) });
+
+    unsub = currentDocRef.onSnapshot(async (doc) => {
+      const d = doc.data();
+      if (d && d.answer && pc.signalingState === 'have-local-offer'){
+        try{
+          await pc.setRemoteDescription(JSON.parse(d.answer));
+        }catch(e){}
+      }
+    });
+  } else {
+    // Offer bor, javob yo'q — men CALLEE bo'laman
+    setStatus('Do\'stingiz kutyapti, ulanyapmiz... 🔗');
+    await pc.setRemoteDescription(JSON.parse(data.offer));
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    await waitIceComplete(pc);
+    await currentDocRef.update({ answer: JSON.stringify(pc.localDescription) });
+  }
+}
+
+function disconnect(){
+  connected = false;
+  if (unsub){ unsub(); unsub = null; }
+  if (pc){ pc.close(); pc = null; }
+  if (localStream){ localStream.getTracks().forEach(t => t.stop()); localStream = null; }
+  stopMeter();
+  remoteAudio.srcObject = null;
+  mainBtn.textContent = 'ULASH';
+  mainBtn.classList.remove('on');
+  mainBtn.disabled = false;
+  stateTxt.textContent = 'OFFLINE';
+  setDot('');
+  setStatus('Uzildi. Qayta ulash uchun bos.');
+  if (currentDocRef){ currentDocRef.delete().catch(()=>{}); currentDocRef = null; }
+}
+
+mainBtn.addEventListener('click', () => {
+  if (mainBtn.classList.contains('on')) disconnect();
+  else connect();
+});
+
+muteBtn.addEventListener('click', () => {
+  if (!localStream) return;
+  muted = !muted;
+  localStream.getAudioTracks().forEach(t => t.enabled = !muted);
+  muteBtn.textContent = muted ? '🔇 MIKROFON: O\'CHIQ' : '🎙 MIKROFON: OCHIQ';
+  muteBtn.classList.toggle('active', muted);
+});
+</script>
+</body>
+</html>
