@@ -719,11 +719,11 @@
       </div>
 
       <div class="vc-side-wrap">
-        <button type="button" class="vc-side-btn leave" id="mainBtn" title="Chiqish">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7a2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.42 19.42 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91"/><line x1="23" y1="1" x2="1" y2="23"/></svg>
+        <button type="button" class="vc-side-btn leave" id="mainBtn" title="Qo'ng'iroqni tugatish">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 9c-1.6 0-3.15.25-4.6.72v3.1c0 .39-.23.74-.56.9-.98.49-1.87 1.12-2.66 1.85-.18.18-.43.28-.7.28-.28 0-.53-.11-.71-.29L.29 13.08c-.18-.17-.29-.42-.29-.7 0-.28.11-.53.29-.71C3.34 8.78 7.46 7 12 7s8.66 1.78 11.71 4.67c.18.18.29.43.29.71 0 .28-.11.53-.29.71l-2.48 2.48c-.18.18-.43.29-.71.29-.27 0-.52-.11-.7-.28-.79-.73-1.68-1.36-2.66-1.85-.33-.16-.56-.5-.56-.9v-3.1C15.15 9.25 13.6 9 12 9z"/></svg>
           <span id="mainBtnTxt" style="display:none">CHIQISH</span>
         </button>
-        <div class="vc-side-label">Chiqish</div>
+        <div class="vc-side-label">Tugatish</div>
       </div>
     </div>
   </div>
@@ -751,6 +751,108 @@ const DEFAULT_MAX_PARTICIPANTS = 10;
 const MIN_MAX_PARTICIPANTS = 2;
 const MAX_MAX_PARTICIPANTS = 30;
 const MY_ROOMS_KEY = 'aloqa-xonasi-my-rooms';
+/** Xona 14 kun faol bo'lmasa avtomatik o'chiriladi */
+const ROOM_TTL_MS = 14 * 24 * 60 * 60 * 1000;
+const ROOM_TTL_DAYS = 14;
+
+/** Firestore Timestamp | number | Date → millis */
+function toMillis(v){
+  if (v == null) return 0;
+  if (typeof v === 'number') return v;
+  if (typeof v.toMillis === 'function') return v.toMillis();
+  if (typeof v.seconds === 'number') return v.seconds * 1000 + Math.floor((v.nanoseconds || 0) / 1e6);
+  if (v instanceof Date) return v.getTime();
+  return 0;
+}
+
+/** Xona oxirgi faollik vaqti (lastActivity yoki lastJoinedAt / createdAt fallback) */
+function roomLastActivityMs(data){
+  if (!data) return 0;
+  return toMillis(data.lastActivity) || toMillis(data.lastJoinedAt) || toMillis(data.createdAt) || 0;
+}
+
+function isRoomExpired(data, nowMs){
+  const now = nowMs != null ? nowMs : Date.now();
+  const last = roomLastActivityMs(data);
+  if (!last) return false; // noma'lum — xavfsiz tomonda saqlaymiz
+  return (now - last) > ROOM_TTL_MS;
+}
+
+/** lastActivity ni serverTimestamp bilan yangilash */
+function touchRoomActivity(roomDocRef){
+  return roomDocRef.set({
+    lastActivity: firebase.firestore.FieldValue.serverTimestamp(),
+    lastJoinedAt: Date.now()
+  }, { merge: true });
+}
+
+/**
+ * Muddati o'tgan xonani to'liq o'chirish:
+ * peers + signals (WebRTC offer/answer/candidate) + asosiy hujjat.
+ * Band resurslar / signaling tozalanadi.
+ */
+async function deleteRoomCompletely(code){
+  if (!code) return;
+  const ref = db.collection(ROOM_COLLECTION).doc(String(code).toUpperCase());
+  try {
+    // Subkolleksiyalarni batch limit (500) bilan tozalash
+    async function deleteCollection(colRef){
+      let safety = 0;
+      while (safety++ < 20) {
+        const snap = await colRef.limit(400).get();
+        if (snap.empty) break;
+        const batch = db.batch();
+        snap.docs.forEach(d => batch.delete(d.ref));
+        await batch.commit();
+        if (snap.size < 400) break;
+      }
+    }
+    await Promise.all([
+      deleteCollection(ref.collection('peers')),
+      deleteCollection(ref.collection('signals'))
+    ]);
+    await ref.delete().catch(() => {});
+  } catch (e) {
+    console.warn('deleteRoomCompletely:', code, e);
+  }
+  try { removeMyRoom(code); } catch (e) {}
+}
+
+/**
+ * Client-side: muddati o'tgan xonalarni topib o'chirish.
+ * Public ro'yxat / qidiruv ochilganda chaqiriladi (opportunistic cleanup).
+ */
+async function purgeExpiredRooms(roomDocs){
+  const now = Date.now();
+  const expired = [];
+  (roomDocs || []).forEach(doc => {
+    const data = typeof doc.data === 'function' ? doc.data() : (doc.data || doc);
+    const code = doc.id || doc.code;
+    if (code && isRoomExpired(data, now)) expired.push(code);
+  });
+  if (!expired.length) return [];
+  // Parallel, lekin juda ko'p bo'lmasin
+  const chunk = expired.slice(0, 15);
+  await Promise.all(chunk.map(code => deleteRoomCompletely(code)));
+  return chunk;
+}
+
+/** Faqat muddati o'tmagan xonalarni qaytaradi; expiredlarni o'chirishga urinadi */
+async function filterAndPurgeRooms(items){
+  const now = Date.now();
+  const alive = [];
+  const expiredCodes = [];
+  for (const item of items) {
+    const data = item.data || {};
+    if (isRoomExpired(data, now)) expiredCodes.push(item.code);
+    else alive.push(item);
+  }
+  if (expiredCodes.length) {
+    // fon rejimida o'chirish — UI ni to'xtatmasin
+    Promise.all(expiredCodes.slice(0, 15).map(c => deleteRoomCompletely(c))).catch(() => {});
+  }
+  return alive;
+}
 
 const lobbyEl = document.getElementById('lobby');
 const callScreenEl = document.getElementById('callScreen');
@@ -764,6 +866,17 @@ const joinBtn = document.getElementById('joinBtn');
 const statusJoinEl = document.getElementById('statusJoin');
 const micRetryJoinBtn = document.getElementById('micRetryJoin');
 const micRetryJoinTxt = document.getElementById('micRetryJoinTxt');
+
+// URL dagi xona kodini darhol inputga yozish (auth kutmasdan)
+(function earlyFillRoomFromUrl(){
+  try {
+    const p = new URLSearchParams(window.location.search);
+    const r = (p.get('room') || '').trim().toUpperCase();
+    if (r.length >= 4 && r.length <= 8 && /^[A-Z0-9]+$/.test(r) && roomJoinInput) {
+      roomJoinInput.value = r;
+    }
+  } catch (e) {}
+})();
 
 const roomCreateInput = document.getElementById('roomCreate');
 const roomNameCreateInput = document.getElementById('roomNameCreate');
@@ -935,16 +1048,20 @@ function setRoomInUrl(code){
 }
 function clearRoomFromUrl(){
   setRoomInUrl('');
-  try { sessionStorage.removeItem('aloqa-room-pass'); } catch (e) {}
 }
-function saveRoomPass(pass){
+// Parolni xona kodi bo'yicha localStorage da saqlash (bir marta so'raladi, keyingi safar avtomatik)
+function saveRoomPass(code, pass){
   try {
-    if (pass) sessionStorage.setItem('aloqa-room-pass', pass);
-    else sessionStorage.removeItem('aloqa-room-pass');
+    const key = 'aloqa-room-pass-' + String(code || '').toUpperCase();
+    if (!key || key === 'aloqa-room-pass-') return;
+    if (pass) localStorage.setItem(key, pass);
+    else localStorage.removeItem(key);
   } catch (e) {}
 }
-function loadRoomPass(){
-  try { return sessionStorage.getItem('aloqa-room-pass') || ''; } catch (e) { return ''; }
+function loadRoomPass(code){
+  try {
+    return localStorage.getItem('aloqa-room-pass-' + String(code || '').toUpperCase()) || '';
+  } catch (e) { return ''; }
 }
 
 function setStatus(text, isErr){ statusEl.textContent = text; statusEl.className = 'status' + (isErr ? ' err' : ''); }
@@ -1022,7 +1139,15 @@ function closeProfileScreen(){
   profileScreenEl.style.display = 'none';
   lobbyEl.style.display = 'block';
 }
-profileIconBtn.addEventListener('click', openProfileScreen);
+profileIconBtn.addEventListener('click', () => {
+  // Xona ichida bo'lsa profil sahifasini ochmasin — faqat rasmni zoom qilsin
+  if (joined) {
+    const url = currentAvatarUrl();
+    if (url) openAvatarLightbox(url);
+    return;
+  }
+  openProfileScreen();
+});
 profileBackBtn.addEventListener('click', closeProfileScreen);
 
 document.querySelectorAll('.ptab-btn').forEach(btn => {
@@ -1091,22 +1216,18 @@ async function loadOrCreateProfile(user){
   tryAutoJoinFromUrl();
 }
 
+let autoJoiningFromUrl = false;
+
 async function tryAutoJoinFromUrl(){
   if (autoJoinAttempted || joined) return;
   const code = getRoomFromUrl();
   if (!code) return;
   autoJoinAttempted = true;
 
-  // Qo'shilish tabini ochish
+  // Qo'shilish tabini ochish + kodni to'ldirish
   const joinTabBtn = document.querySelector('.tab-btn[data-tab="join"]');
   if (joinTabBtn) joinTabBtn.click();
-
   roomJoinInput.value = code;
-  const savedPass = loadRoomPass();
-  if (savedPass) {
-    passwordJoinInput.value = savedPass;
-    joinPassWrap.style.display = 'block';
-  }
 
   // Ism bo'sh bo'lsa profil nomi
   if (!profileNameInput.value.trim()) {
@@ -1114,11 +1235,62 @@ async function tryAutoJoinFromUrl(){
     profileNameInput.value = (p.name && p.name !== 'Mehmon') ? p.name : (p.username || 'Mehmon');
     localStorage.setItem(PROFILE_NAME_KEY, profileNameInput.value);
   }
+  refreshJoinBtnState();
 
-  setStatusJoin('URL dagi xonaga qayta ulanilmoqda: ' + code + '...');
-  setTimeout(() => {
-    if (!joined) joinBtn.click();
-  }, 450);
+  // Xonani darhol tekshirish
+  let roomSnap;
+  try {
+    roomSnap = await db.collection(ROOM_COLLECTION).doc(code).get();
+  } catch (e) {
+    setStatusJoin('Xonani tekshirib bo\'lmadi.', true);
+    return;
+  }
+  if (!roomSnap.exists) {
+    setStatusJoin('Bunday xona topilmadi. Kodni tekshiring.', true);
+    return;
+  }
+
+  const roomData = roomSnap.data() || {};
+  if (isRoomExpired(roomData)) {
+    deleteRoomCompletely(code).catch(() => {});
+    setStatusJoin('Bu xona muddati o\'tgan (14 kun) va o\'chirildi.', true);
+    return;
+  }
+  const savedPass = loadRoomPass(code);
+
+  if (roomData.passwordHash) {
+    // Parol bor
+    if (savedPass) {
+      try {
+        const h = await sha256Hex(savedPass);
+        if (h === roomData.passwordHash) {
+          // Saqlangan parol to'g'ri — avtomatik kirish
+          passwordJoinInput.value = savedPass;
+          joinPassWrap.style.display = 'none';
+          autoJoiningFromUrl = true;
+          setStatusJoin('Xonaga ulanilmoqda...');
+          if (!joined) joinBtn.click();
+          return;
+        }
+      } catch (e) {}
+      // Saqlangan parol xato — o'chiramiz
+      saveRoomPass(code, '');
+    }
+    // Parol so'rash: home da qoladi, input ochiladi, foydalanuvchi o'zi bosadi
+    joinPassWrap.style.display = 'block';
+    passwordJoinInput.value = '';
+    setStatusJoin('Bu xona parol bilan himoyalangan. Parolni kiriting.');
+    refreshJoinBtnState();
+    setTimeout(() => { try { passwordJoinInput.focus(); } catch (e) {} }, 30);
+    return;
+  }
+
+  // Parolsiz xona — darhol kirish, loading room ichida
+  joinPassWrap.style.display = 'none';
+  passwordJoinInput.value = '';
+  autoJoiningFromUrl = true;
+  setStatusJoin('Xonaga ulanilmoqda...');
+  if (!joined) joinBtn.click();
 }
 
 function renderAccountView(user){
@@ -1654,10 +1826,15 @@ async function refreshRoomLists(){
   myPrivateRoomListEl.innerHTML = '<div class="empty-list">Yuklanmoqda...</div>';
 
   try{
-    const snap = await db.collection(ROOM_COLLECTION).where('visibility','==','public').limit(30).get();
+    const snap = await db.collection(ROOM_COLLECTION).where('visibility','==','public').limit(40).get();
+    // 14 kundan eski xonalarni filtrlash + bazadan o'chirish
+    await purgeExpiredRooms(snap.docs);
     const rooms = [];
     for (const doc of snap.docs){
-      rooms.push({ code: doc.id, data: doc.data(), count: await countPeers(doc.id) });
+      const data = doc.data();
+      if (isRoomExpired(data)) continue;
+      rooms.push({ code: doc.id, data, count: await countPeers(doc.id) });
+      if (rooms.length >= 30) break;
     }
     renderRoomList(publicRoomListEl, rooms, 'Hozircha ommaviy xonalar yo\'q', false);
   }catch(e){
@@ -1666,8 +1843,9 @@ async function refreshRoomLists(){
 
   try{
     const mine = await fetchMyCreatedRooms();
-    renderRoomList(myPublicRoomListEl, mine.filter(r => r.data.visibility !== 'private'), 'Hali public xona yaratmagansiz', true);
-    renderRoomList(myPrivateRoomListEl, mine.filter(r => r.data.visibility === 'private'), 'Hali private xona yaratmagansiz', true);
+    const mineAlive = await filterAndPurgeRooms(mine);
+    renderRoomList(myPublicRoomListEl, mineAlive.filter(r => r.data.visibility !== 'private'), 'Hali public xona yaratmagansiz', true);
+    renderRoomList(myPrivateRoomListEl, mineAlive.filter(r => r.data.visibility === 'private'), 'Hali private xona yaratmagansiz', true);
   }catch(e){
     myPublicRoomListEl.innerHTML = '<div class="empty-list err">Yuklab bo\'lmadi.</div>';
     myPrivateRoomListEl.innerHTML = '<div class="empty-list err">Yuklab bo\'lmadi.</div>';
@@ -1836,7 +2014,7 @@ function makeRoomCard(code, data, count, isMine){
       if (!confirm(title + " xonasini butunlay o'chirasizmi? Kod bo'shaydi.")) return;
       delBtn.textContent = "O'chirilmoqda...";
       try{
-        await deleteRoomCompletely(code);
+        await deleteRoomAndRefresh(code);
       }catch(err){
         alert("O'chirilmadi. Rules'da o'chirish ruxsatini tekshiring.");
         delBtn.textContent = "O'chirish";
@@ -1851,18 +2029,9 @@ async function renameRoom(code, name){
   await refreshRoomLists();
 }
 
-async function deleteRoomCompletely(code){
-  const ref = db.collection(ROOM_COLLECTION).doc(code);
-  const [peersSnap, signalsSnap] = await Promise.all([
-    ref.collection('peers').get(),
-    ref.collection('signals').get()
-  ]);
-  const batch = db.batch();
-  peersSnap.forEach(d => batch.delete(d.ref));
-  signalsSnap.forEach(d => batch.delete(d.ref));
-  batch.delete(ref);
-  await batch.commit();
-  removeMyRoom(code);
+// deleteRoomCompletely — yuqorida (TTL / cleanup) e'lon qilingan
+async function deleteRoomAndRefresh(code){
+  await deleteRoomCompletely(code);
   await refreshRoomLists();
 }
 
@@ -2448,6 +2617,8 @@ joinBtn.addEventListener('click', async () => {
   const enteredName = profileNameInput.value.trim();
   const room = roomJoinInput.value.trim().toUpperCase();
   const password = passwordJoinInput.value;
+  const fromUrlAuto = autoJoiningFromUrl;
+  autoJoiningFromUrl = false;
 
   if (!enteredName){ setStatusJoin('Ism kiritilmadi.', true); return; }
   if (!room || room.length < 4 || room.length > 8){ setStatusJoin('Xona kodi 4-8 belgi bo\'lsin.', true); return; }
@@ -2455,42 +2626,69 @@ joinBtn.addEventListener('click', async () => {
   setBtnLoading(joinBtn, true, 'QO\'SHILYAPTI...', 'QO\'SHILISH');
   roomRef = db.collection(ROOM_COLLECTION).doc(room);
 
+  // URL orqali avtomatik kirishda loading ni darhol room ichida ko'rsatamiz
+  if (fromUrlAuto) {
+    enterCallScreen();
+    setStatus('Ulanilmoqda...');
+  }
+
+  const failJoin = (msg) => {
+    setStatusJoin(msg, true);
+    setBtnLoading(joinBtn, false, '', 'QO\'SHILISH');
+    if (fromUrlAuto && joined) {
+      // room UI ga kirib qolgan bo'lsa qaytarib yuboramiz
+      joined = false;
+      stopLogoReact();
+      callScreenEl.style.display = 'none';
+      callScreenEl.classList.remove('active-call');
+      lobbyEl.style.display = 'block';
+      setDot('');
+      setStatus('');
+    }
+  };
+
   let roomSnap;
   try{
     roomSnap = await roomRef.get();
   }catch(e){
     console.error('room get:', e);
-    setStatusJoin('Firestore xatosi (o\'qish): ' + (e.code || e.message), true);
-    setBtnLoading(joinBtn, false, '', 'QO\'SHILISH');
+    failJoin('Firestore xatosi (o\'qish): ' + (e.code || e.message));
     return;
   }
 
   if (!roomSnap.exists){
-    setStatusJoin('Bunday xona topilmadi. Kodni tekshiring yoki "Yaratish" bo\'limidan yangi xona oching.', true);
-    setBtnLoading(joinBtn, false, '', 'QO\'SHILISH');
+    failJoin('Bunday xona topilmadi. Kodni tekshiring yoki "Yaratish" bo\'limidan yangi xona oching.');
     return;
   }
   const roomData = roomSnap.data();
 
+  // 14 kundan eski xona — o'chirib, kirishni rad etamiz
+  if (isRoomExpired(roomData)) {
+    deleteRoomCompletely(room).catch(() => {});
+    failJoin('Bu xona muddati o\'tgan (14 kun faol emas) va o\'chirildi.');
+    return;
+  }
+
   if (roomData.passwordHash){
     if (!password){
       joinPassWrap.style.display = 'block';
-      setStatusJoin('Bu xona parol bilan himoyalangan. Parolni kiriting.', true);
-      setBtnLoading(joinBtn, false, '', 'QO\'SHILISH');
+      failJoin('Bu xona parol bilan himoyalangan. Parolni kiriting.');
+      setTimeout(() => { try { passwordJoinInput.focus(); } catch (e) {} }, 30);
       return;
     }
     const enteredHash = await sha256Hex(password);
     if (enteredHash !== roomData.passwordHash){
-      setStatusJoin('Parol xato.', true);
-      setBtnLoading(joinBtn, false, '', 'QO\'SHILISH');
+      failJoin('Parol xato.');
       return;
     }
   }
 
-  if (!(await ensureMic(setStatusJoin))){ setBtnLoading(joinBtn, false, '', 'QO\'SHILISH'); return; }
+  if (!(await ensureMic(fromUrlAuto ? setStatus : setStatusJoin))){
+    failJoin(fromUrlAuto ? 'Mikrofon ruxsati berilmadi.' : 'Mikrofon ruxsati berilmadi.');
+    return;
+  }
 
   // --- Sig'im tekshiruvi + peer yozish ---
-  // Eski kod: tx.get(peersCol) → invalid-argument (transaction da butun kolleksiya o'qib bo'lmaydi)
   const roomMaxParticipants = Number.isFinite(roomData.maxParticipants) ? roomData.maxParticipants : DEFAULT_MAX_PARTICIPANTS;
   const peersCol = roomRef.collection('peers');
   const myPeerDoc = peersCol.doc(myId);
@@ -2498,8 +2696,7 @@ joinBtn.addEventListener('click', async () => {
     const existing = await peersCol.get();
     const alreadyIn = existing.docs.some(d => d.id === myId);
     if (!alreadyIn && existing.size >= roomMaxParticipants){
-      setStatusJoin(`Xona to'lgan (max ${roomMaxParticipants} kishi, hozir ${existing.size}).`, true);
-      setBtnLoading(joinBtn, false, '', 'QO\'SHILISH');
+      failJoin(`Xona to'lgan (max ${roomMaxParticipants} kishi, hozir ${existing.size}).`);
       return;
     }
     existing.forEach(doc => {
@@ -2513,23 +2710,28 @@ joinBtn.addEventListener('click', async () => {
     const newCount = alreadyIn ? existing.size : existing.size + 1;
     const prevPeak = Number.isFinite(roomData.peakCount) ? roomData.peakCount : 0;
     await myPeerDoc.set({ joinedAt: Date.now(), name: enteredName, muted: false, forceMuted: false });
-    await roomRef.set({ lastJoinedAt: Date.now(), peakCount: Math.max(prevPeak, newCount) }, { merge: true });
+    await roomRef.set({
+      lastJoinedAt: Date.now(),
+      lastActivity: firebase.firestore.FieldValue.serverTimestamp(),
+      peakCount: Math.max(prevPeak, newCount)
+    }, { merge: true });
   }catch(e){
     console.error('join write:', e);
-    setStatusJoin('Firestore xatosi (qo\'shilish): ' + (e.code || e.message), true);
-    setBtnLoading(joinBtn, false, '', 'QO\'SHILISH');
+    failJoin('Firestore xatosi (qo\'shilish): ' + (e.code || e.message));
     return;
   }
 
   myName = enteredName;
   myPeerRef = myPeerDoc;
-  isRoomHost = (roomData.createdBy === myId); // deyarli hech qachon true bo'lmaydi (join qiluvchi host emas), lekin xavfsizlik uchun tekshiramiz
+  isRoomHost = (roomData.createdBy === myId);
   muted = false;
   forceMuted = false;
-  saveRoomPass(password || '');
+  if (password) saveRoomPass(room, password);
+  else saveRoomPass(room, ''); // parolsiz — eski saqlangan parolni tozalash
 
   setBtnLoading(joinBtn, false, '', 'QO\'SHILISH');
-  enterCallScreen();
+  if (!fromUrlAuto) enterCallScreen();
+  else setStatus(''); // loading tugadi
   attachPresence(room, peersCol);
   watchMyPeerDoc();
 });
@@ -2582,6 +2784,7 @@ createBtn.addEventListener('click', async () => {
     createdByUid: (auth.currentUser && auth.currentUser.uid) || null,
     maxParticipants: maxParticipants,
     lastJoinedAt: Date.now(),
+    lastActivity: firebase.firestore.FieldValue.serverTimestamp(),
     peakCount: 1
   };
   if (password) payload.passwordHash = await sha256Hex(password);
@@ -2694,25 +2897,9 @@ async function leave(){
   refreshRoomLists();
 }
 
-// --- Chiqishni tasdiqlash: birinchi bosishda ogohlantirish, ikkinchisida chiqadi ---
-let leaveConfirmTimer = null;
-function requestLeave(btn, txtEl, normalText){
-  if (btn.classList.contains('confirming')){
-    clearTimeout(leaveConfirmTimer);
-    btn.classList.remove('confirming');
-    txtEl.textContent = normalText;
-    leave();
-    return;
-  }
-  btn.classList.add('confirming');
-  txtEl.textContent = 'YANA BOSING';
-  leaveConfirmTimer = setTimeout(() => {
-    btn.classList.remove('confirming');
-    txtEl.textContent = normalText;
-  }, 2500);
-}
-mainBtn.addEventListener('click', () => requestLeave(mainBtn, mainBtnTxt, 'CHIQISH'));
-leaveTopBtn.addEventListener('click', () => requestLeave(leaveTopBtn, leaveTopTxt, 'CHIQISH'));
+// --- Chiqish: bir marta bosish bilan xonadan chiqadi ---
+mainBtn.addEventListener('click', () => leave());
+leaveTopBtn.addEventListener('click', () => leave());
 
 const MIC_ICON_INNER = '<path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/>';
 const MIC_OFF_ICON_INNER = '<line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/>';
