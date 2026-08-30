@@ -211,9 +211,30 @@
   .avatar-edit-badge{
     position:absolute; bottom:-3px; right:-3px; width:18px; height:18px; border-radius:50%;
     background:var(--amber); color:#ffffff; display:flex; align-items:center; justify-content:center;
-    border:2px solid var(--bg2);
+    border:2px solid var(--bg2); z-index:2; cursor:pointer;
   }
   .avatar-edit-badge svg{ width:10px; height:10px; }
+  .avatar-lightbox{
+    display:none; position:fixed; inset:0; z-index:9999;
+    background:rgba(0,0,0,0.78); backdrop-filter:blur(6px);
+    align-items:center; justify-content:center; padding:24px;
+    animation: lbFadeIn .18s ease;
+  }
+  .avatar-lightbox.open{ display:flex; }
+  @keyframes lbFadeIn{ from{ opacity:0; } to{ opacity:1; } }
+  .avatar-lightbox-img{
+    width:min(280px, 72vw); height:min(280px, 72vw);
+    border-radius:50%; object-fit:cover;
+    box-shadow:0 12px 48px rgba(0,0,0,0.45), 0 0 0 4px rgba(255,255,255,0.12);
+    background:var(--bg2); animation: lbZoom .22s ease;
+  }
+  @keyframes lbZoom{ from{ transform:scale(0.85); opacity:0.6; } to{ transform:scale(1); opacity:1; } }
+  .avatar-lightbox-close{
+    position:absolute; top:18px; right:18px; width:40px; height:40px; border-radius:50%;
+    border:none; background:rgba(255,255,255,0.12); color:#fff; font-size:22px; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; line-height:1;
+  }
+  .avatar-lightbox-close:hover{ background:rgba(255,255,255,0.22); }
   .signout-btn{
     width:100%; padding:14px; background:none; border:1px solid var(--red); color:var(--red);
     font-family:var(--font); font-weight:600; font-size:13px; letter-spacing:0; border-radius:var(--radius);
@@ -581,6 +602,11 @@
       <button class="mute-btn" id="muteBtn"><svg class="btn-icon" id="muteIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg><span id="muteTxt">MIKROFON: OCHIQ</span></button>
       <span id="stateTxt">OFFLINE</span>
     </div>
+  </div>
+
+  <div class="avatar-lightbox" id="avatarLightbox" aria-hidden="true">
+    <button type="button" class="avatar-lightbox-close" id="avatarLightboxClose" aria-label="Yopish">&times;</button>
+    <img class="avatar-lightbox-img" id="avatarLightboxImg" alt="Profil rasmi" />
   </div>
 
 </div>
@@ -1121,10 +1147,57 @@ function bindAvatarPicker(fileEl){
 }
 bindAvatarPicker(accAvatarFileEl);
 bindAvatarPicker(document.getElementById('guestAvatarFile'));
-document.getElementById('accAvatarWrap').addEventListener('click', () => accAvatarFileEl.click());
-document.getElementById('guestAvatarWrap').addEventListener('click', () => {
-  document.getElementById('guestAvatarFile').click();
+
+function openAvatarLightbox(url){
+  if (!url) return;
+  const lb = document.getElementById('avatarLightbox');
+  const img = document.getElementById('avatarLightboxImg');
+  if (!lb || !img) return;
+  img.src = url;
+  lb.classList.add('open');
+  lb.setAttribute('aria-hidden', 'false');
+}
+function closeAvatarLightbox(){
+  const lb = document.getElementById('avatarLightbox');
+  const img = document.getElementById('avatarLightboxImg');
+  if (!lb) return;
+  lb.classList.remove('open');
+  lb.setAttribute('aria-hidden', 'true');
+  if (img) img.src = '';
+}
+document.getElementById('avatarLightboxClose')?.addEventListener('click', (e) => {
+  e.stopPropagation();
+  closeAvatarLightbox();
 });
+document.getElementById('avatarLightbox')?.addEventListener('click', (e) => {
+  if (e.target.id === 'avatarLightbox') closeAvatarLightbox();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeAvatarLightbox();
+});
+
+function bindAvatarPreviewAndEdit(wrapEl, fileEl){
+  if (!wrapEl) return;
+  const badge = wrapEl.querySelector('.avatar-edit-badge');
+  const avatarEl = wrapEl.querySelector('.profile-avatar');
+  if (badge) {
+    badge.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (fileEl) fileEl.click();
+    });
+  }
+  wrapEl.addEventListener('click', (e) => {
+    if (badge && (e.target === badge || badge.contains(e.target))) return;
+    const url = currentAvatarUrl();
+    if (url) {
+      openAvatarLightbox(url);
+    } else if (fileEl) {
+      fileEl.click();
+    }
+  });
+}
+bindAvatarPreviewAndEdit(document.getElementById('accAvatarWrap'), accAvatarFileEl);
+bindAvatarPreviewAndEdit(document.getElementById('guestAvatarWrap'), document.getElementById('guestAvatarFile'));
 
 // --- Sign out: real akkaunt sessiyasidan chiqadi, keyin YANGI anonim UID (0-dan) ---
 document.getElementById('signOutBtn').addEventListener('click', async () => {
