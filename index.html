@@ -6,6 +6,7 @@
 <title>ALOQA XONASI — Guruh</title>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <style>
   :root{
     --bg: #0b0d0a; --bg2: #12150f; --line: #2a3324;
@@ -119,6 +120,13 @@
   }
   .signout-btn:hover{ background:rgba(255,74,74,0.08); }
   .signout-btn .btn-icon{ width:14px; height:14px; }
+  .google-signin-btn{
+    width:100%; padding:14px; background:#fff; border:1px solid var(--line); color:#1f1f1f;
+    font-family:var(--font); font-weight:700; font-size:11px; letter-spacing:1.5px; border-radius:5px;
+    cursor:pointer; margin-bottom:16px; display:flex; align-items:center; justify-content:center; gap:10px; transition:all .15s;
+  }
+  .google-signin-btn:hover{ box-shadow:0 0 0 2px var(--amber-dim); }
+  .google-signin-btn .btn-icon{ width:16px; height:16px; }
 
   .room-list{ display:flex; flex-direction:column; gap:6px; max-height:280px; overflow-y:auto; margin-bottom:6px; }
   .room-list::-webkit-scrollbar{ width:4px; }
@@ -321,6 +329,8 @@
   <div id="profileScreen" style="display:none;">
     <button class="back-btn" id="profileBack"><svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>ORQAGA</button>
 
+    <button class="google-signin-btn" id="googleSignInBtn"><svg class="btn-icon" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>GOOGLE BILAN KIRISH</button>
+
     <div class="tabs">
       <button class="ptab-btn active" data-ptab="guest">MEHMON</button>
       <button class="ptab-btn" data-ptab="account">HISOB</button>
@@ -351,7 +361,7 @@
         </div>
 
         <div class="psub-panel active" id="asub-login">
-          <input class="form-input" id="loginEmail" type="email" placeholder="EMAIL" autocomplete="username" />
+          <input class="form-input" id="loginEmail" type="text" placeholder="USERNAME" autocomplete="username" />
           <input class="form-input" id="loginPassword" type="password" placeholder="PAROL" autocomplete="current-password" />
           <div class="status" id="statusLogin"></div>
           <button class="btn-main" id="loginBtn">KIRISH</button>
@@ -359,7 +369,7 @@
 
         <div class="psub-panel" id="asub-register">
           <input class="form-input" id="regName" type="text" maxlength="20" placeholder="ISM" autocomplete="name" />
-          <input class="form-input" id="regEmail" type="email" placeholder="EMAIL" autocomplete="username" />
+          <input class="form-input" id="regEmail" type="text" maxlength="20" placeholder="USERNAME (bo'sh qoldirsa avtomatik beriladi)" autocomplete="username" />
           <input class="form-input" id="regPassword" type="password" placeholder="PAROL" autocomplete="new-password" />
           <input class="form-input" id="regPassword2" type="password" placeholder="PAROLNI TAKRORLANG" autocomplete="new-password" />
           <div class="status" id="statusRegister"></div>
@@ -569,22 +579,16 @@ document.querySelectorAll('.subtab-btn').forEach(btn => {
 });
 
 // --- PROFIL SAHIFASI ---
+const auth = firebase.auth();
 const profileScreenEl = document.getElementById('profileScreen');
 const profileIconBtn = document.getElementById('profileIconBtn');
 const profileBackBtn = document.getElementById('profileBack');
 const guestAvatarEl = document.getElementById('guestAvatar');
-const guestNameDisplayEl = document.getElementById('guestNameDisplay');
 const guestIdDisplayEl = document.getElementById('guestIdDisplay');
-const ACCOUNTS_KEY = 'aloqa-xonasi-accounts';
-const SESSION_KEY = 'aloqa-xonasi-session';
 
 function openProfileScreen(){
   lobbyEl.style.display = 'none';
   profileScreenEl.style.display = 'block';
-  guestAvatarEl.textContent = '?';
-  guestAvatarEl.style.background = '#65aadd';
-  guestIdDisplayEl.textContent = myId;
-  renderAccountView();
 }
 function closeProfileScreen(){
   profileScreenEl.style.display = 'none';
@@ -610,11 +614,7 @@ document.querySelectorAll('.psub-btn').forEach(btn => {
   });
 });
 
-// --- HISOB: Kirish / Ro'yxatdan o'tish / Profil tahrirlash (demo, faqat shu qurilmada — real backend emas) ---
-function getAccounts(){
-  try { return JSON.parse(localStorage.getItem(ACCOUNTS_KEY)) || {}; } catch(e){ return {}; }
-}
-function saveAccounts(acc){ localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(acc)); }
+// --- HISOB: real Firebase Authentication (Anonymous → Google/Email link) ---
 function setStatusEl(el, text, isErr){ el.textContent = text; el.className = 'status' + (isErr ? ' err' : ''); }
 
 const accountLoggedOutEl = document.getElementById('accountLoggedOut');
@@ -623,121 +623,239 @@ const accAvatarEl = document.getElementById('accAvatar');
 const accAvatarFileEl = document.getElementById('accAvatarFile');
 const accNameInput = document.getElementById('accName');
 const accUsernameInput = document.getElementById('accUsername');
+const googleSignInBtn = document.getElementById('googleSignInBtn');
 
-function getSessionEmail(){ return localStorage.getItem(SESSION_KEY); }
+function autoUsername(uid){ return 'user_' + uid.slice(0, 6).toLowerCase(); }
+function emailFromUsername(u){ return u.trim().toLowerCase() + '@aloqa-xonasi.local'; }
 
-function renderAccountView(){
-  const email = getSessionEmail();
-  const accounts = getAccounts();
-  const acc = email ? accounts[email] : null;
-  if (acc) {
-    accountLoggedOutEl.style.display = 'none';
-    accountLoggedInEl.style.display = 'block';
-    accNameInput.value = acc.name || '';
-    accUsernameInput.value = acc.username || '';
-    if (acc.avatar) {
-      accAvatarEl.style.backgroundImage = `url(${acc.avatar})`;
-      accAvatarEl.textContent = '';
-    } else {
-      accAvatarEl.style.backgroundImage = '';
-      accAvatarEl.textContent = (acc.name || '?').charAt(0).toUpperCase();
-      accAvatarEl.style.background = colorForProfile(acc.name || 'x');
-    }
-    // Akkaunt bilan kirilganda asosiy profil ham shu ma'lumotdan foydalanadi
-    profileNameInput.value = acc.username ? acc.username : acc.name;
-    localStorage.setItem(PROFILE_NAME_KEY, profileNameInput.value);
-    updateProfileAvatar();
-    refreshAllBtnStates();
-  } else {
-    accountLoggedOutEl.style.display = 'block';
-    accountLoggedInEl.style.display = 'none';
-  }
+function updateGoogleBtnVisibility(isRealAccount){
+  googleSignInBtn.style.display = isRealAccount ? 'none' : 'flex';
 }
 
-document.getElementById('registerBtn').addEventListener('click', () => {
+let currentProfile = null; // Firestore users/{uid} hujjati cache'i
+
+async function loadOrCreateProfile(user){
+  const ref = db.collection('users').doc(user.uid);
+  const snap = await ref.get();
+  const isAnon = user.isAnonymous;
+  if (snap.exists) {
+    currentProfile = snap.data();
+  } else {
+    currentProfile = {
+      name: isAnon ? 'Mehmon' : (user.displayName || 'Foydalanuvchi'),
+      username: isAnon ? '' : autoUsername(user.uid),
+      avatar: user.photoURL || null,
+      provider: isAnon ? 'anonymous' : (user.providerData[0] ? user.providerData[0].providerId : 'password'),
+      createdAt: Date.now()
+    };
+    await ref.set(currentProfile);
+    if (!isAnon && currentProfile.username) {
+      await db.collection('usernames').doc(currentProfile.username).set({ uid: user.uid }).catch(()=>{});
+    }
+  }
+  renderAccountView(user);
+}
+
+function renderAccountView(user){
+  user = user || auth.currentUser;
+  if (!user) return;
+  const isAnon = user.isAnonymous;
+  updateGoogleBtnVisibility(!isAnon);
+
+  if (isAnon) {
+    accountLoggedOutEl.style.display = 'block';
+    accountLoggedInEl.style.display = 'none';
+    return;
+  }
+  accountLoggedOutEl.style.display = 'none';
+  accountLoggedInEl.style.display = 'block';
+
+  const p = currentProfile || {};
+  accNameInput.value = p.name || '';
+  accUsernameInput.value = p.username || autoUsername(user.uid);
+  if (p.avatar) {
+    accAvatarEl.style.backgroundImage = `url(${p.avatar})`;
+    accAvatarEl.textContent = '';
+  } else {
+    accAvatarEl.style.backgroundImage = '';
+    accAvatarEl.textContent = (p.name || '?').charAt(0).toUpperCase();
+    accAvatarEl.style.background = colorForProfile(p.name || 'x');
+  }
+  // Xona ichida ko'rinadigan ism ham shu profildan olinadi
+  profileNameInput.value = p.username || p.name;
+  localStorage.setItem(PROFILE_NAME_KEY, profileNameInput.value);
+  updateProfileAvatar();
+  refreshAllBtnStates();
+}
+
+// --- Anonim sessiyani boshlash (sahifa ochilganda) ---
+auth.onAuthStateChanged((user) => {
+  if (user) {
+    guestIdDisplayEl.textContent = user.uid.slice(0, 8);
+    loadOrCreateProfile(user);
+  } else {
+    auth.signInAnonymously().catch((err) => {
+      console.error('Anon auth xatosi:', err);
+    });
+  }
+});
+
+// --- Ro'yxatdan o'tish: username + email(ichki) + parol, anon UID'ga LINK qilinadi ---
+document.getElementById('registerBtn').addEventListener('click', async () => {
   const st = document.getElementById('statusRegister');
   const name = document.getElementById('regName').value.trim();
-  const email = document.getElementById('regEmail').value.trim().toLowerCase();
+  const usernameRaw = document.getElementById('regEmail').value.trim(); // shu input username sifatida ishlatiladi
   const pass = document.getElementById('regPassword').value;
   const pass2 = document.getElementById('regPassword2').value;
-  if (!name || !email || !pass) { setStatusEl(st, "Barcha maydonlarni to'ldiring", true); return; }
+  if (!name || !pass) { setStatusEl(st, "Ism va parolni to'ldiring", true); return; }
   if (pass !== pass2) { setStatusEl(st, 'Parollar mos emas', true); return; }
   if (pass.length < 6) { setStatusEl(st, "Parol kamida 6 belgidan iborat bo'lsin", true); return; }
-  const accounts = getAccounts();
-  if (accounts[email]) { setStatusEl(st, "Bu email allaqachon ro'yxatdan o'tgan", true); return; }
-  accounts[email] = { name, pass, username: '', avatar: null };
-  saveAccounts(accounts);
-  localStorage.setItem(SESSION_KEY, email);
-  setStatusEl(st, "Ro'yxatdan o'tildi! Xush kelibsiz, " + name);
-  renderAccountView();
-});
+  const user0 = auth.currentUser;
+  const username = usernameRaw ? usernameRaw.replace(/\s+/g, '').toLowerCase() : autoUsername(user0 ? user0.uid : Math.random().toString(36).slice(2));
 
-document.getElementById('loginBtn').addEventListener('click', () => {
-  const st = document.getElementById('statusLogin');
-  const email = document.getElementById('loginEmail').value.trim().toLowerCase();
-  const pass = document.getElementById('loginPassword').value;
-  if (!email || !pass) { setStatusEl(st, "Email va parolni kiriting", true); return; }
-  const accounts = getAccounts();
-  const acc = accounts[email];
-  if (!acc || acc.pass !== pass) { setStatusEl(st, "Email yoki parol noto'g'ri", true); return; }
-  localStorage.setItem(SESSION_KEY, email);
-  setStatusEl(st, "Xush kelibsiz, " + acc.name);
-  renderAccountView();
-});
+  try {
+    const takenSnap = await db.collection('usernames').doc(username).get();
+    if (takenSnap.exists) { setStatusEl(st, 'Bu username band', true); return; }
 
-document.getElementById('saveAccountBtn').addEventListener('click', () => {
-  const st = document.getElementById('statusAccount');
-  const email = getSessionEmail();
-  if (!email) return;
-  const accounts = getAccounts();
-  const acc = accounts[email];
-  if (!acc) return;
-  const newName = accNameInput.value.trim();
-  const newUsername = accUsernameInput.value.trim().replace(/\s+/g, '');
-  if (!newName) { setStatusEl(st, "Ism bo'sh bo'lmasin", true); return; }
-  // username unikal bo'lishi kerak (bo'sh bo'lsa muammo yo'q — username ixtiyoriy)
-  if (newUsername) {
-    const clash = Object.entries(accounts).find(([e, a]) => e !== email && a.username === newUsername);
-    if (clash) { setStatusEl(st, 'Bu username band', true); return; }
+    const credential = firebase.auth.EmailAuthProvider.credential(emailFromUsername(username), pass);
+    const user = auth.currentUser;
+    let resultUser;
+    if (user && user.isAnonymous) {
+      // Mehmon → Email akkauntga LINK: UID saqlanadi, mehmon davridagi data sync o'tadi
+      const res = await user.linkWithCredential(credential);
+      resultUser = res.user;
+    } else {
+      const res = await auth.createUserWithEmailAndPassword(emailFromUsername(username), pass);
+      resultUser = res.user;
+    }
+    currentProfile = { name, username, avatar: currentProfile?.avatar || null, provider: 'password', createdAt: Date.now() };
+    await db.collection('users').doc(resultUser.uid).set(currentProfile);
+    await db.collection('usernames').doc(username).set({ uid: resultUser.uid });
+    setStatusEl(st, "Ro'yxatdan o'tildi! Xush kelibsiz, " + name);
+    renderAccountView(resultUser);
+  } catch (err) {
+    console.error(err);
+    setStatusEl(st, err.code === 'auth/email-already-in-use' ? 'Bu username band' : "Xatolik: " + err.message, true);
   }
-  acc.name = newName;
-  acc.username = newUsername;
-  saveAccounts(accounts);
-  setStatusEl(st, 'Saqlandi');
-  renderAccountView();
 });
 
+// --- Kirish: username + parol (ichki email'ga tarjima qilinadi) ---
+document.getElementById('loginBtn').addEventListener('click', async () => {
+  const st = document.getElementById('statusLogin');
+  const username = document.getElementById('loginEmail').value.trim().toLowerCase();
+  const pass = document.getElementById('loginPassword').value;
+  if (!username || !pass) { setStatusEl(st, "Username va parolni kiriting", true); return; }
+  try {
+    const res = await auth.signInWithEmailAndPassword(emailFromUsername(username), pass);
+    setStatusEl(st, "Xush kelibsiz");
+    await loadOrCreateProfile(res.user);
+  } catch (err) {
+    console.error(err);
+    setStatusEl(st, "Username yoki parol noto'g'ri", true);
+  }
+});
+
+// --- Profilni saqlash (ism, username) ---
+document.getElementById('saveAccountBtn').addEventListener('click', async () => {
+  const st = document.getElementById('statusAccount');
+  const user = auth.currentUser;
+  if (!user || user.isAnonymous) return;
+  const newName = accNameInput.value.trim();
+  const newUsername = accUsernameInput.value.trim().replace(/\s+/g, '').toLowerCase();
+  if (!newName) { setStatusEl(st, "Ism bo'sh bo'lmasin", true); return; }
+  if (!newUsername) { setStatusEl(st, "Username bo'sh bo'lmasin", true); return; }
+
+  try {
+    const oldUsername = currentProfile.username;
+    if (newUsername !== oldUsername) {
+      const takenSnap = await db.collection('usernames').doc(newUsername).get();
+      if (takenSnap.exists) { setStatusEl(st, 'Bu username band', true); return; }
+      await db.collection('usernames').doc(newUsername).set({ uid: user.uid });
+      if (oldUsername) await db.collection('usernames').doc(oldUsername).delete().catch(()=>{});
+    }
+    currentProfile.name = newName;
+    currentProfile.username = newUsername;
+    await db.collection('users').doc(user.uid).update({ name: newName, username: newUsername });
+    setStatusEl(st, 'Saqlandi');
+    renderAccountView(user);
+  } catch (err) {
+    console.error(err);
+    setStatusEl(st, 'Xatolik: ' + err.message, true);
+  }
+});
+
+// --- Avatar yuklash (base64, Firestore users/{uid} ichida, 900KB limit) ---
 accAvatarFileEl.addEventListener('change', (e) => {
   const file = e.target.files[0];
   if (!file) return;
   if (!file.type.startsWith('image/')) return;
   const reader = new FileReader();
-  reader.onload = () => {
-    const email = getSessionEmail();
-    if (!email) return;
-    const accounts = getAccounts();
-    const acc = accounts[email];
-    if (!acc) return;
-    acc.avatar = reader.result; // base64 data-url, shu qurilmada saqlanadi
-    saveAccounts(accounts);
-    renderAccountView();
+  reader.onload = async () => {
+    const user = auth.currentUser;
+    if (!user || user.isAnonymous) return;
+    const dataUrl = reader.result;
+    if (dataUrl.length > 900000) {
+      alert("Rasm juda katta (900KB dan oshmasligi kerak). Kichikroq rasm tanlang.");
+      return;
+    }
+    try {
+      currentProfile.avatar = dataUrl;
+      await db.collection('users').doc(user.uid).update({ avatar: dataUrl });
+      renderAccountView(user);
+    } catch (err) {
+      console.error(err);
+      alert('Rasm saqlanmadi: ' + err.message);
+    }
   };
   reader.readAsDataURL(file);
 });
 document.getElementById('accAvatarWrap').addEventListener('click', () => accAvatarFileEl.click());
 
-document.getElementById('signOutBtn').addEventListener('click', () => {
-  localStorage.removeItem(SESSION_KEY);
+// --- Sign out: real akkaunt sessiyasidan chiqadi, keyin YANGI anonim UID (0-dan) ---
+document.getElementById('signOutBtn').addEventListener('click', async () => {
+  await auth.signOut();
+  currentProfile = null;
   profileNameInput.value = '';
   localStorage.setItem(PROFILE_NAME_KEY, '');
   updateProfileAvatar();
   refreshAllBtnStates();
   document.getElementById('loginEmail').value = '';
   document.getElementById('loginPassword').value = '';
-  renderAccountView();
+  // onAuthStateChanged avtomatik signInAnonymously() ni chaqiradi — yangi mehmon UID
 });
 
-renderAccountView();
+// --- Google bilan kirish/link (redirect oqimi — mobilga ishonchli) ---
+googleSignInBtn.addEventListener('click', () => {
+  const provider = new firebase.auth.GoogleAuthProvider();
+  const user = auth.currentUser;
+  if (user && user.isAnonymous) {
+    user.linkWithRedirect(provider);
+  } else {
+    auth.signInWithRedirect(provider);
+  }
+});
+
+auth.getRedirectResult().then(async (result) => {
+  if (result && result.user) {
+    const user = result.user;
+    const ref = db.collection('users').doc(user.uid);
+    const snap = await ref.get();
+    if (!snap.exists) {
+      currentProfile = {
+        name: user.displayName || 'Foydalanuvchi',
+        username: autoUsername(user.uid),
+        avatar: user.photoURL || null,
+        provider: 'google.com',
+        createdAt: Date.now()
+      };
+      await ref.set(currentProfile);
+      await db.collection('usernames').doc(currentProfile.username).set({ uid: user.uid }).catch(()=>{});
+    }
+    renderAccountView(user);
+  }
+}).catch((err) => {
+  console.error('Google redirect xatosi:', err);
+});
 visPublicBtn.addEventListener('click', () => setVisibility('public'));
 visPrivateBtn.addEventListener('click', () => setVisibility('private'));
 function setVisibility(v){
