@@ -44,6 +44,8 @@
   .rec-dot.live{ background:var(--green); box-shadow:0 0 8px var(--green), 0 0 16px var(--green); animation:pulse 1.4s infinite; }
   .rec-dot.pending{ background:var(--amber); box-shadow:0 0 8px var(--amber); animation:pulse .7s infinite; }
   @keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:.35;} }
+  .app-logo circle[stroke]{ animation:pulse 1.8s infinite; }
+  .app-logo circle:last-of-type{ animation-delay:.3s; }
   label{ font-size:10px; color:var(--text-dim); letter-spacing:2px; display:block; margin-bottom:6px; }
   .code-row{ display:flex; gap:8px; margin-bottom:14px; }
   input#roomJoin, input#roomCreate{
@@ -232,9 +234,19 @@
 
 <div class="rig">
   <div class="head">
-    <div>
-      <h1>ALOQA XONASI</h1>
-      <div class="tag">GURUH REJIMI — XOHLAGAN ODAM QO'SHILADI</div>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <svg class="app-logo" viewBox="0 0 200 200" width="26" height="26" fill="none">
+        <circle cx="60" cy="100" r="14" stroke="#ff8a00" stroke-width="3"/>
+        <circle cx="140" cy="100" r="14" stroke="#6dff8a" stroke-width="3"/>
+        <path d="M78 100 Q100 78 122 100" stroke="#ff8a00" stroke-width="2.5" stroke-dasharray="4 5"/>
+        <path d="M78 100 Q100 122 122 100" stroke="#6dff8a" stroke-width="2.5" stroke-dasharray="4 5"/>
+        <circle cx="60" cy="100" r="5" fill="#ff8a00"/>
+        <circle cx="140" cy="100" r="5" fill="#6dff8a"/>
+      </svg>
+      <div>
+        <h1>ALOQA XONASI</h1>
+        <div class="tag">GURUH REJIMI — XOHLAGAN ODAM QO'SHILADI</div>
+      </div>
     </div>
     <div class="head-right">
       <button class="profile-icon-btn" id="profileIconBtn" title="Profil">
