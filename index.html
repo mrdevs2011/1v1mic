@@ -529,7 +529,6 @@
       </div>
       <div class="status" id="statusJoin">Ismingiz va xona kodini kiriting</div>
       <button class="btn-main" id="joinBtn" disabled>QO'SHILISH</button>
-      <button class="mic-retry-btn" id="micRetryJoin"><svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg><span id="micRetryJoinTxt">MIKROFON RUXSATINI BROWSERDAN QAYTA SO'RASH</span></button>
     </div>
 
     <div class="tab-panel" id="panel-create">
@@ -566,7 +565,6 @@
       </div>
       <div class="status" id="statusCreate">Ma'lumotlarni to'ldiring va XONA YARATISH bosing</div>
       <button class="btn-main" id="createBtn" disabled>XONA YARATISH</button>
-      <button class="mic-retry-btn" id="micRetryCreate"><svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg><span id="micRetryCreateTxt">MIKROFON RUXSATINI BROWSERDAN QAYTA SO'RASH</span></button>
     </div>
 
     <div class="tab-panel" id="panel-rooms">
@@ -864,8 +862,7 @@ const passwordJoinInput = document.getElementById('passwordJoin');
 const joinPassWrap = document.getElementById('joinPassWrap');
 const joinBtn = document.getElementById('joinBtn');
 const statusJoinEl = document.getElementById('statusJoin');
-const micRetryJoinBtn = document.getElementById('micRetryJoin');
-const micRetryJoinTxt = document.getElementById('micRetryJoinTxt');
+
 
 // URL dagi xona kodini darhol inputga yozish (auth kutmasdan)
 (function earlyFillRoomFromUrl(){
@@ -886,8 +883,7 @@ const createBtn = document.getElementById('createBtn');
 const statusCreateEl = document.getElementById('statusCreate');
 const visPublicBtn = document.getElementById('visPublic');
 const visPrivateBtn = document.getElementById('visPrivate');
-const micRetryCreateBtn = document.getElementById('micRetryCreate');
-const micRetryCreateTxt = document.getElementById('micRetryCreateTxt');
+
 const createdCodeBox = document.getElementById('createdCodeBox');
 const createdCodeText = document.getElementById('createdCodeText');
 const copyCodeBtn = document.getElementById('copyCodeBtn');
@@ -1216,81 +1212,19 @@ async function loadOrCreateProfile(user){
   tryAutoJoinFromUrl();
 }
 
-let autoJoiningFromUrl = false;
-
-async function tryAutoJoinFromUrl(){
+// URL orqali kirishda faqat xona kodini inputga yozadi — avtomatik qo'shilmaydi
+function tryAutoJoinFromUrl(){
   if (autoJoinAttempted || joined) return;
   const code = getRoomFromUrl();
   if (!code) return;
   autoJoinAttempted = true;
 
-  // Qo'shilish tabini ochish + kodni to'ldirish
   const joinTabBtn = document.querySelector('.tab-btn[data-tab="join"]');
   if (joinTabBtn) joinTabBtn.click();
   roomJoinInput.value = code;
-
-  // Ism bo'sh bo'lsa profil nomi
-  if (!profileNameInput.value.trim()) {
-    const p = currentProfile || {};
-    profileNameInput.value = (p.name && p.name !== 'Mehmon') ? p.name : (p.username || 'Mehmon');
-    localStorage.setItem(PROFILE_NAME_KEY, profileNameInput.value);
-  }
   refreshJoinBtnState();
-
-  // Xonani darhol tekshirish
-  let roomSnap;
-  try {
-    roomSnap = await db.collection(ROOM_COLLECTION).doc(code).get();
-  } catch (e) {
-    setStatusJoin('Xonani tekshirib bo\'lmadi.', true);
-    return;
-  }
-  if (!roomSnap.exists) {
-    setStatusJoin('Bunday xona topilmadi. Kodni tekshiring.', true);
-    return;
-  }
-
-  const roomData = roomSnap.data() || {};
-  if (isRoomExpired(roomData)) {
-    deleteRoomCompletely(code).catch(() => {});
-    setStatusJoin('Bu xona muddati o\'tgan (14 kun) va o\'chirildi.', true);
-    return;
-  }
-  const savedPass = loadRoomPass(code);
-
-  if (roomData.passwordHash) {
-    // Parol bor
-    if (savedPass) {
-      try {
-        const h = await sha256Hex(savedPass);
-        if (h === roomData.passwordHash) {
-          // Saqlangan parol to'g'ri — avtomatik kirish
-          passwordJoinInput.value = savedPass;
-          joinPassWrap.style.display = 'none';
-          autoJoiningFromUrl = true;
-          setStatusJoin('Xonaga ulanilmoqda...');
-          if (!joined) joinBtn.click();
-          return;
-        }
-      } catch (e) {}
-      // Saqlangan parol xato — o'chiramiz
-      saveRoomPass(code, '');
-    }
-    // Parol so'rash: home da qoladi, input ochiladi, foydalanuvchi o'zi bosadi
-    joinPassWrap.style.display = 'block';
-    passwordJoinInput.value = '';
-    setStatusJoin('Bu xona parol bilan himoyalangan. Parolni kiriting.');
-    refreshJoinBtnState();
-    setTimeout(() => { try { passwordJoinInput.focus(); } catch (e) {} }, 30);
-    return;
-  }
-
-  // Parolsiz xona — darhol kirish, loading room ichida
-  joinPassWrap.style.display = 'none';
-  passwordJoinInput.value = '';
-  autoJoiningFromUrl = true;
-  setStatusJoin('Xonaga ulanilmoqda...');
-  if (!joined) joinBtn.click();
+  // Parol maydonini xona tekshiruvi orqali ko'rsatish (input event)
+  roomJoinInput.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
 function renderAccountView(user){
@@ -2217,38 +2151,61 @@ function stopMeter(){
   analyser = null;
 }
 
-async function requestMicUpfront(){
+/** Mikrofon ruxsatini avtomatik so'rash (tugmasiz, orqa fonda) */
+async function requestMicUpfront(silent){
+  if (micReady && localStream && localStream.getAudioTracks().some(t => t.readyState === 'live')) {
+    return true;
+  }
   setDot('pending');
   try{
     localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
     micReady = true;
     setDot('');
     startMeter(localStream);
-    micRetryJoinBtn.classList.remove('show');
-    micRetryCreateBtn.classList.remove('show');
+    if (!silent) {
+      setStatusJoin('Mikrofon tayyor');
+      setStatusCreate('Mikrofon tayyor');
+    }
+    return true;
   }catch(e){
     micReady = false;
     setDot('');
-    setStatusJoin('Mikrofonga ruxsat berilmadi. Brauzer manzil satridagi qulf belgisiga bosib yoq.', true);
-    setStatusCreate('Mikrofonga ruxsat berilmadi. Brauzer manzil satridagi qulf belgisiga bosib yoq.', true);
-    micRetryJoinBtn.classList.add('show');
-    micRetryCreateBtn.classList.add('show');
+    if (!silent) {
+      setStatusJoin('Mikrofonga ruxsat berilmadi. Brauzer sozlamalaridan mikrofonni yoqing.', true);
+      setStatusCreate('Mikrofonga ruxsat berilmadi. Brauzer sozlamalaridan mikrofonni yoqing.', true);
+    }
+    return false;
   }
 }
-micRetryJoinBtn.addEventListener('click', async () => {
-  micRetryJoinTxt.textContent = 'SO\'RALYAPTI...';
-  await requestMicUpfront();
-  micRetryJoinTxt.textContent = 'MIKROFON RUXSATINI BROWSERDAN QAYTA SO\'RASH';
-  if (micReady) setStatusJoin('Mikrofon tayyor');
-});
-micRetryCreateBtn.addEventListener('click', async () => {
-  micRetryCreateTxt.textContent = 'SO\'RALYAPTI...';
-  await requestMicUpfront();
-  micRetryCreateTxt.textContent = 'MIKROFON RUXSATINI BROWSERDAN QAYTA SO\'RASH';
-  if (micReady) setStatusCreate('Mikrofon tayyor');
-});
+
+// Orqa fonda qayta urinish (ruxsat berilmaguncha / stream tugamaguncha)
+let micBgRetryTimer = null;
+function startMicBackgroundRetry(){
+  if (micBgRetryTimer) return;
+  micBgRetryTimer = setInterval(async () => {
+    if (micReady && localStream && localStream.getAudioTracks().some(t => t.readyState === 'live')) {
+      clearInterval(micBgRetryTimer);
+      micBgRetryTimer = null;
+      return;
+    }
+    const ok = await requestMicUpfront(true);
+    if (ok) {
+      clearInterval(micBgRetryTimer);
+      micBgRetryTimer = null;
+    }
+  }, 2500);
+}
+
 window.addEventListener('DOMContentLoaded', () => {
-  requestMicUpfront();
+  requestMicUpfront(true).then(ok => {
+    if (!ok) startMicBackgroundRetry();
+  });
+  // Tab qayta faol bo'lganda ham qayta urinish
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && !micReady) {
+      requestMicUpfront(true).then(ok => { if (!ok) startMicBackgroundRetry(); });
+    }
+  });
   refreshRoomLists();
   refreshAllBtnStates();
 });
@@ -2499,19 +2456,15 @@ function teardownPeer(peerId){
 }
 
 async function ensureMic(setStatusFn){
-  if (!micReady || !localStream || localStream.getAudioTracks().every(t => t.readyState === 'ended')){
-    setStatusFn('Mikrofonga ruxsat so\'ralyapti...');
-    try{
-      localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      micReady = true;
-      startMeter(localStream);
-      return true;
-    }catch(e){
-      setStatusFn('Mikrofon ruxsati berilmadi.', true);
-      return false;
-    }
+  if (micReady && localStream && localStream.getAudioTracks().some(t => t.readyState === 'live')) {
+    return true;
   }
-  return true;
+  setStatusFn('Mikrofonga ruxsat so\'ralyapti...');
+  const ok = await requestMicUpfront(true);
+  if (ok) return true;
+  setStatusFn('Mikrofon ruxsati berilmadi. Brauzer sozlamalaridan yoqing — avtomatik qayta uriniladi.', true);
+  startMicBackgroundRetry();
+  return false;
 }
 
 function enterCallScreen(){
@@ -2617,8 +2570,6 @@ joinBtn.addEventListener('click', async () => {
   const enteredName = profileNameInput.value.trim();
   const room = roomJoinInput.value.trim().toUpperCase();
   const password = passwordJoinInput.value;
-  const fromUrlAuto = autoJoiningFromUrl;
-  autoJoiningFromUrl = false;
 
   if (!enteredName){ setStatusJoin('Ism kiritilmadi.', true); return; }
   if (!room || room.length < 4 || room.length > 8){ setStatusJoin('Xona kodi 4-8 belgi bo\'lsin.', true); return; }
@@ -2626,25 +2577,9 @@ joinBtn.addEventListener('click', async () => {
   setBtnLoading(joinBtn, true, 'QO\'SHILYAPTI...', 'QO\'SHILISH');
   roomRef = db.collection(ROOM_COLLECTION).doc(room);
 
-  // URL orqali avtomatik kirishda loading ni darhol room ichida ko'rsatamiz
-  if (fromUrlAuto) {
-    enterCallScreen();
-    setStatus('Ulanilmoqda...');
-  }
-
   const failJoin = (msg) => {
     setStatusJoin(msg, true);
     setBtnLoading(joinBtn, false, '', 'QO\'SHILISH');
-    if (fromUrlAuto && joined) {
-      // room UI ga kirib qolgan bo'lsa qaytarib yuboramiz
-      joined = false;
-      stopLogoReact();
-      callScreenEl.style.display = 'none';
-      callScreenEl.classList.remove('active-call');
-      lobbyEl.style.display = 'block';
-      setDot('');
-      setStatus('');
-    }
   };
 
   let roomSnap;
@@ -2683,8 +2618,8 @@ joinBtn.addEventListener('click', async () => {
     }
   }
 
-  if (!(await ensureMic(fromUrlAuto ? setStatus : setStatusJoin))){
-    failJoin(fromUrlAuto ? 'Mikrofon ruxsati berilmadi.' : 'Mikrofon ruxsati berilmadi.');
+  if (!(await ensureMic(setStatusJoin))){
+    failJoin('Mikrofon ruxsati berilmadi.');
     return;
   }
 
@@ -2733,11 +2668,10 @@ joinBtn.addEventListener('click', async () => {
   muted = false;
   forceMuted = false;
   if (password) saveRoomPass(room, password);
-  else saveRoomPass(room, ''); // parolsiz — eski saqlangan parolni tozalash
+  else saveRoomPass(room, '');
 
   setBtnLoading(joinBtn, false, '', 'QO\'SHILISH');
-  if (!fromUrlAuto) enterCallScreen();
-  else setStatus(''); // loading tugadi
+  enterCallScreen();
   attachPresence(room, peersCol);
   watchMyPeerDoc();
 });
