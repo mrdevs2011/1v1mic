@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ALOQA XONASI — Guruh</title>
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23eef3f8'/%3E%3Ccircle cx='11' cy='16' r='4.2' fill='%233b82f6'/%3E%3Ccircle cx='21' cy='16' r='4.2' fill='%2317a673'/%3E%3Cpath d='M14.2 16 Q16 12.5 17.8 16' fill='none' stroke='%233b82f6' stroke-width='1.6' stroke-linecap='round'/%3E%3Cpath d='M14.2 16 Q16 19.5 17.8 16' fill='none' stroke='%2317a673' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E">
-<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23eef3f8'/%3E%3Ccircle cx='11' cy='16' r='4.2' fill='%233b82f6'/%3E%3Ccircle cx='21' cy='16' r='4.2' fill='%2317a673'/%3E%3Cpath d='M14.2 16 Q16 12.5 17.8 16' fill='none' stroke='%233b82f6' stroke-width='1.6' stroke-linecap='round'/%3E%3Cpath d='M14.2 16 Q16 19.5 17.8 16' fill='none' stroke='%2317a673' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E">
+<title>OVOZLI SUHBAT</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='5' fill='%233B82F6'/%3E%3Crect x='9' y='4' width='6' height='9' rx='3' fill='%23FFFFFF'/%3E%3Cpath d='M6 10v1a6 6 0 0 0 12 0v-1' stroke='%23FFFFFF' stroke-width='2' stroke-linecap='round' fill='none'/%3E%3Cline x1='12' y1='17' x2='12' y2='20' stroke='%23FFFFFF' stroke-width='2' stroke-linecap='round'/%3E%3Cline x1='9' y1='20' x2='15' y2='20' stroke='%23FFFFFF' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='5' fill='%233B82F6'/%3E%3Crect x='9' y='4' width='6' height='9' rx='3' fill='%23FFFFFF'/%3E%3Cpath d='M6 10v1a6 6 0 0 0 12 0v-1' stroke='%23FFFFFF' stroke-width='2' stroke-linecap='round' fill='none'/%3E%3Cline x1='12' y1='17' x2='12' y2='20' stroke='%23FFFFFF' stroke-width='2' stroke-linecap='round'/%3E%3Cline x1='9' y1='20' x2='15' y2='20' stroke='%23FFFFFF' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E">
 <meta name="theme-color" content="#3b82f6">
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
@@ -237,8 +237,15 @@
   .pstate.invited{ color:var(--text-dim); }
   .picon{ flex-shrink:0; opacity:0.8; }
   .picon svg{ display:block; width:18px; height:18px; }
-  .meter{ display:flex; gap:3px; align-items:flex-end; height:28px; margin:10px 0 4px; justify-content:center; }
-  .meter span{ width:4px; background:var(--amber-dim); border-radius:2px; transition:height .08s ease, background .2s; }
+  .meter{
+    position:relative; width:100%; height:72px; margin:14px 0 8px;
+    display:flex; align-items:center; justify-content:center;
+    overflow:hidden; border-radius:16px;
+    background: linear-gradient(180deg, rgba(59,130,246,0.04) 0%, rgba(22,163,74,0.03) 100%);
+  }
+  .meter canvas{
+    display:block; width:100%; height:100%;
+  }
   .status{ text-align:center; font-size:13px; letter-spacing:0; color:var(--text-dim); min-height:16px; margin-bottom:16px; }
   .btn-main{
     width:100%; padding:14px; background:var(--amber);
@@ -326,7 +333,7 @@
         <circle id="logoDotR" cx="140" cy="100" r="5" fill="#16a34a"/>
       </svg>
       <div>
-        <h1>ALOQA XONASI</h1>
+        <h1>OVOZLI SUHBAT</h1>
         <div class="tag">GURUH REJIMI — XOHLAGAN ODAM QO'SHILADI</div>
       </div>
     </div>
@@ -523,7 +530,7 @@
 
     <div class="participants" id="participants"></div>
 
-    <div class="meter" id="meter"></div>
+    <div class="meter" id="meter"><canvas id="meterCanvas"></canvas></div>
 
     <div class="status" id="status"></div>
 
@@ -684,12 +691,16 @@ profileNameInput.addEventListener('input', () => {
   refreshAllBtnStates();
 });
 
-for(let i=0;i<20;i++){
-  const b = document.createElement('span');
-  b.style.height = '3px';
-  meterEl.appendChild(b);
-}
-const meterBars = [...meterEl.children];
+const meterCanvas = document.getElementById('meterCanvas');
+const meterCtx = meterCanvas ? meterCanvas.getContext('2d') : null;
+let smoothLevel = 0;
+let wavePhase = 0;
+const WAVE_LAYERS = [
+  { amp: 1.00, freq: 1.15, speed: 0.018, color: 'rgba(59,130,246,0.55)', width: 2.4 },
+  { amp: 0.72, freq: 1.70, speed: 0.026, color: 'rgba(59,130,246,0.28)', width: 1.8 },
+  { amp: 0.48, freq: 0.85, speed: 0.012, color: 'rgba(22,163,74,0.35)', width: 2.0 },
+  { amp: 0.32, freq: 2.20, speed: 0.032, color: 'rgba(99,102,241,0.22)', width: 1.4 }
+];
 
 const myId = (crypto.randomUUID ? crypto.randomUUID() : 'p-' + Math.random().toString(36).slice(2)).slice(0,8);
 let myName = '';
@@ -1412,24 +1423,96 @@ async function waitIceComplete(peer){
   });
 }
 
+function resizeMeterCanvas(){
+  if (!meterCanvas || !meterEl) return;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const w = meterEl.clientWidth || 280;
+  const h = meterEl.clientHeight || 72;
+  meterCanvas.width = Math.floor(w * dpr);
+  meterCanvas.height = Math.floor(h * dpr);
+  if (meterCtx) meterCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+function drawSiriWaves(level){
+  if (!meterCtx || !meterCanvas) return;
+  const w = meterEl.clientWidth || 280;
+  const h = meterEl.clientHeight || 72;
+  const midY = h * 0.5;
+  meterCtx.clearRect(0, 0, w, h);
+
+  // soft center glow (water-like)
+  const glow = meterCtx.createRadialGradient(w * 0.5, midY, 2, w * 0.5, midY, w * 0.42);
+  glow.addColorStop(0, `rgba(59,130,246,${(0.06 + level * 0.18).toFixed(3)})`);
+  glow.addColorStop(1, 'rgba(59,130,246,0)');
+  meterCtx.fillStyle = glow;
+  meterCtx.fillRect(0, 0, w, h);
+
+  const baseAmp = 3 + level * (h * 0.38);
+  const breath = 0.92 + 0.08 * Math.sin(wavePhase * 0.35);
+
+  WAVE_LAYERS.forEach((layer, li) => {
+    const amp = baseAmp * layer.amp * breath;
+    const phase = wavePhase * (0.55 + li * 0.12) + li * 1.1;
+    meterCtx.beginPath();
+    meterCtx.lineWidth = layer.width;
+    meterCtx.strokeStyle = layer.color;
+    meterCtx.lineCap = 'round';
+    meterCtx.lineJoin = 'round';
+
+    const steps = 64;
+    for (let i = 0; i <= steps; i++){
+      const t = i / steps;
+      const x = t * w;
+      // envelope: soft edges like water ripple fading at sides
+      const envelope = Math.sin(Math.PI * t);
+      const y =
+        midY +
+        Math.sin(t * Math.PI * 2 * layer.freq + phase) * amp * envelope +
+        Math.sin(t * Math.PI * 2 * (layer.freq * 0.45) - phase * 0.7) * amp * 0.28 * envelope;
+      if (i === 0) meterCtx.moveTo(x, y);
+      else meterCtx.lineTo(x, y);
+    }
+    meterCtx.stroke();
+  });
+}
+
 function startMeter(stream){
   try{
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     const src = audioCtx.createMediaStreamSource(stream);
     analyser = audioCtx.createAnalyser();
-    analyser.fftSize = 64;
+    analyser.fftSize = 256;
+    analyser.smoothingTimeConstant = 0.85;
     src.connect(analyser);
     const data = new Uint8Array(analyser.frequencyBinCount);
+    resizeMeterCanvas();
+    smoothLevel = 0;
+    wavePhase = 0;
+
     function loop(){
       analyser.getByteFrequencyData(data);
-      const avg = data.reduce((a,b)=>a+b,0) / data.length;
-      const activeBars = Math.min(meterBars.length, Math.round((avg/255) * meterBars.length * 1.6));
-      meterBars.forEach((bar, i) => {
-        if (i < activeBars){ bar.style.height = (10 + Math.random()*18) + 'px'; bar.style.background = 'var(--green)'; }
-        else { bar.style.height = '3px'; bar.style.background = 'var(--green-dim)'; }
-      });
+      // real volume: emphasize mid bands a bit (voice)
+      let sum = 0;
+      const n = data.length;
+      for (let i = 0; i < n; i++){
+        const w = i < n * 0.15 ? 0.4 : (i < n * 0.55 ? 1.2 : 0.7);
+        sum += data[i] * w;
+      }
+      const raw = Math.min(1, (sum / n) / 90);
+      // heavy exponential smooth — Siri-like calm response
+      const attack = 0.14;
+      const release = 0.045;
+      const target = (muted || forceMuted) ? 0 : raw;
+      if (target > smoothLevel) smoothLevel += (target - smoothLevel) * attack;
+      else smoothLevel += (target - smoothLevel) * release;
+
+      // phase advances slower when quiet, a bit faster when speaking
+      wavePhase += 0.028 + smoothLevel * 0.055;
+
+      drawSiriWaves(smoothLevel);
+
       const wasSpeaking = !!speakingState[myId];
-      const nowSpeaking = !muted && avg > 14;
+      const nowSpeaking = !muted && !forceMuted && smoothLevel > 0.08;
       if (wasSpeaking !== nowSpeaking){
         speakingState[myId] = nowSpeaking;
         if (joined) renderParticipants();
@@ -1437,9 +1520,12 @@ function startMeter(stream){
       meterRAF = requestAnimationFrame(loop);
     }
     loop();
+    window.addEventListener('resize', resizeMeterCanvas);
   }catch(e){}
 }
 let logoRAF = null;
+let logoSmoothMy = 0;
+let logoSmoothPeer = 0;
 function logoLevelOf(an, data){
   an.getByteFrequencyData(data);
   const avg = data.reduce((a,b)=>a+b,0) / data.length;
@@ -1455,33 +1541,40 @@ function startLogoReact(){
   const arcBot = document.getElementById('logoArcBot');
   const logo = document.getElementById('appLogo');
   if (!ringL || !ringR) return;
+  logoSmoothMy = 0;
+  logoSmoothPeer = 0;
   function loop(){
-    let myLevel = 0;
-    if (!muted && analyser){
-      myLevel = logoLevelOf(analyser, new Uint8Array(analyser.frequencyBinCount));
+    let targetMy = 0;
+    if (!muted && !forceMuted && analyser){
+      targetMy = logoLevelOf(analyser, new Uint8Array(analyser.frequencyBinCount));
     }
-    let peerLevel = 0;
+    let targetPeer = 0;
     Object.values(peerAnalysers).forEach(a => {
       if (!a) return;
       const lvl = logoLevelOf(a.an, a.data);
-      if (lvl > peerLevel) peerLevel = lvl;
+      if (lvl > targetPeer) targetPeer = lvl;
     });
+    // slow smooth lerp
+    logoSmoothMy += (targetMy - logoSmoothMy) * 0.08;
+    logoSmoothPeer += (targetPeer - logoSmoothPeer) * 0.08;
+    const myLevel = logoSmoothMy;
+    const peerLevel = logoSmoothPeer;
 
     const rL = 14 + myLevel * 6;
     const rR = 14 + peerLevel * 6;
-    ringL.setAttribute('r', rL.toFixed(1));
-    ringR.setAttribute('r', rR.toFixed(1));
-    dotL.setAttribute('r', (5 + myLevel * 3).toFixed(1));
-    dotR.setAttribute('r', (5 + peerLevel * 3).toFixed(1));
-    ringL.style.opacity = (0.55 + myLevel * 0.45).toFixed(2);
-    ringR.style.opacity = (0.55 + peerLevel * 0.45).toFixed(2);
+    ringL.setAttribute('r', rL.toFixed(2));
+    ringR.setAttribute('r', rR.toFixed(2));
+    dotL.setAttribute('r', (5 + myLevel * 3).toFixed(2));
+    dotR.setAttribute('r', (5 + peerLevel * 3).toFixed(2));
+    ringL.style.opacity = (0.55 + myLevel * 0.45).toFixed(3);
+    ringR.style.opacity = (0.55 + peerLevel * 0.45).toFixed(3);
 
     const bow = 8 + Math.max(myLevel, peerLevel) * 14;
     arcTop.setAttribute('d', `M78 100 Q100 ${100 - bow} 122 100`);
     arcBot.setAttribute('d', `M78 100 Q100 ${100 + bow} 122 100`);
 
     const glow = Math.max(myLevel, peerLevel);
-    logo.style.filter = glow > 0.08 ? `drop-shadow(0 0 ${(glow*5).toFixed(1)}px rgba(14,165,233,${(glow*0.7).toFixed(2)}))` : 'none';
+    logo.style.filter = glow > 0.06 ? `drop-shadow(0 0 ${(glow*5).toFixed(1)}px rgba(14,165,233,${(glow*0.65).toFixed(2)}))` : 'none';
 
     logoRAF = requestAnimationFrame(loop);
   }
@@ -1506,9 +1599,15 @@ function stopLogoReact(){
 }
 
 function stopMeter(){
-  if (meterRAF) cancelAnimationFrame(meterRAF);
-  meterBars.forEach(b => { b.style.height = '3px'; b.style.background = 'var(--green-dim)'; });
-  if (audioCtx) audioCtx.close().catch(()=>{});
+  if (meterRAF){ cancelAnimationFrame(meterRAF); meterRAF = null; }
+  smoothLevel = 0;
+  if (meterCtx && meterEl){
+    const w = meterEl.clientWidth || 280;
+    const h = meterEl.clientHeight || 72;
+    meterCtx.clearRect(0, 0, w, h);
+  }
+  if (audioCtx){ audioCtx.close().catch(()=>{}); audioCtx = null; }
+  analyser = null;
 }
 
 async function requestMicUpfront(){
