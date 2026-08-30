@@ -269,6 +269,14 @@
   .room-card .rc-status-badge.active{ background:var(--green-dim); color:var(--green); }
   .room-card .rc-count{ font-size:11px; color:var(--text-dim); letter-spacing:0; margin-top:2px; }
   .room-card .rc-lock{ color:var(--text-dim); flex-shrink:0; }
+  .room-card .rc-copy-link{
+    flex-shrink:0; width:32px; height:32px; border-radius:10px;
+    border:1px solid var(--line); background:var(--input-bg); color:var(--text-dim);
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+    transition: all .15s; padding:0;
+  }
+  .room-card .rc-copy-link:hover{ border-color:var(--amber); color:var(--amber); background:var(--amber-dim); }
+  .room-card .rc-copy-link svg{ width:15px; height:15px; }
   .room-card .rc-more-toggle{
     background:none; border:none; color:var(--amber); font-family:var(--font);
     font-size:11px; font-weight:600; letter-spacing:0; padding:4px 0 0; cursor:pointer;
@@ -279,10 +287,41 @@
   .room-card .rc-detail-row b{ color:var(--text); font-weight:600; }
   .empty-list{ text-align:center; font-size:12px; color:var(--text-dim); letter-spacing:0; padding:24px 8px; }
 
-  .participants{ display:flex; flex-direction:column; gap:2px; margin-bottom:14px; min-height:26px; }
-  .prow{ display:flex; align-items:center; gap:12px; padding:9px 4px; border-bottom:1px solid var(--line); }
+  /* —— Call / Voice Chat overlay —— */
+  #callScreen{
+    display:none; flex-direction:column; min-height:420px;
+  }
+  #callScreen.active-call{ display:flex !important; }
+  .vc-header{
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:12px; padding-bottom:10px; border-bottom:1px solid var(--line);
+  }
+  .vc-header-left{ min-width:0; }
+  .vc-title{ font-size:16px; font-weight:700; color:var(--text); letter-spacing:0; }
+  .vc-subtitle{ font-size:12px; color:var(--text-dim); margin-top:2px; }
+  .vc-header-actions{ display:flex; gap:6px; }
+  .vc-icon-btn{
+    width:36px; height:36px; border-radius:50%; border:1px solid var(--line);
+    background:var(--input-bg); color:var(--text-dim); cursor:pointer;
+    display:flex; align-items:center; justify-content:center; padding:0;
+  }
+  .vc-icon-btn:hover{ color:var(--amber); border-color:var(--amber); }
+  .vc-icon-btn svg{ width:18px; height:18px; }
+
+  .participants{
+    display:flex; flex-direction:column; gap:0;
+    flex:1; min-height:120px; max-height:280px; overflow-y:auto;
+    margin-bottom:8px; padding:4px 0;
+  }
+  .participants::-webkit-scrollbar{ width:4px; }
+  .participants::-webkit-scrollbar-thumb{ background:var(--line); border-radius:2px; }
+  .prow{
+    display:flex; align-items:center; gap:12px;
+    padding:10px 8px; border-radius:12px; transition:background .15s;
+  }
+  .prow:hover{ background:rgba(255,255,255,0.03); }
   .avatar{
-    width:38px; height:38px; border-radius:50%; flex-shrink:0;
+    width:42px; height:42px; border-radius:50%; flex-shrink:0;
     display:flex; align-items:center; justify-content:center;
     font-family: var(--font); font-weight:600; font-size:15px; color:#fff;
     background-size:cover; background-position:center;
@@ -293,22 +332,60 @@
     color:var(--text); letter-spacing:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   }
   .pname.me-label::after{ content:' (Siz)'; color:var(--text-dim); font-weight:400; }
-  .pstate{ font-family: var(--font); font-size:12px; margin-top:1px; letter-spacing:0; }
-  .pstate.listening{ color:var(--green); }
-  .pstate.speaking{ color:var(--amber); }
+  .pstate{ font-family: var(--font); font-size:12px; margin-top:2px; letter-spacing:0; }
+  .pstate.listening{ color:#5b9fd4; }
+  .pstate.speaking{ color:var(--green); font-weight:600; }
   .pstate.invited{ color:var(--text-dim); }
-  .picon{ flex-shrink:0; opacity:0.8; }
-  .picon svg{ display:block; width:18px; height:18px; }
-  .meter{
-    position:relative; width:100%; height:72px; margin:14px 0 8px;
-    display:flex; align-items:center; justify-content:center;
-    overflow:hidden; border-radius:16px;
-    background: var(--meter-bg);
-    border:1px solid var(--line);
+  .picon{ flex-shrink:0; opacity:0.85; }
+  .picon svg{ display:block; width:20px; height:20px; }
+
+  .vc-status{ text-align:center; font-size:12px; color:var(--text-dim); min-height:18px; margin:4px 0 8px; }
+  .vc-status.err{ color:var(--red); }
+
+  .vc-controls{
+    display:flex; align-items:center; justify-content:center; gap:28px;
+    padding:16px 8px 8px; margin-top:auto;
   }
-  .meter canvas{
-    display:block; width:100%; height:100%;
+  .vc-side-btn{
+    width:48px; height:48px; border-radius:50%; border:none;
+    background:#2a3140; color:#c5cad3; cursor:pointer;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:0; transition: transform .12s, background .15s;
   }
+  .vc-side-btn:hover{ background:#343b4d; }
+  .vc-side-btn.active{ background:var(--amber); color:#fff; }
+  .vc-side-btn.leave{ background:#e74c3c; color:#fff; }
+  .vc-side-btn.leave:hover{ background:#c0392b; }
+  .vc-side-btn svg{ width:22px; height:22px; }
+  .vc-side-label{
+    font-size:10px; color:var(--text-dim); text-align:center; margin-top:6px; font-weight:500;
+  }
+  .vc-side-wrap{ display:flex; flex-direction:column; align-items:center; }
+
+  .vc-mic-btn{
+    width:84px; height:84px; border-radius:50%; border:none; cursor:pointer;
+    background: linear-gradient(145deg, #3dd68c, #1a9f6a);
+    color:#fff; display:flex; align-items:center; justify-content:center;
+    box-shadow: 0 8px 28px rgba(29, 185, 120, 0.35);
+    transition: transform .12s, box-shadow .15s, background .2s;
+  }
+  .vc-mic-btn:hover{ transform:scale(1.04); }
+  .vc-mic-btn:active{ transform:scale(0.97); }
+  .vc-mic-btn.muted{
+    background: linear-gradient(145deg, #5a6270, #3d4450);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+  }
+  .vc-mic-btn.forced{
+    background: linear-gradient(145deg, #e74c3c, #c0392b);
+    box-shadow: 0 8px 24px rgba(231, 76, 60, 0.3);
+  }
+  .vc-mic-btn svg{ width:36px; height:36px; }
+  .vc-mic-hint{
+    text-align:center; font-size:12px; color:var(--text-dim); margin-top:10px; margin-bottom:4px;
+  }
+
+  .meter{ display:none !important; }
+  .meter canvas{ display:none; }
   .status{ text-align:center; font-size:13px; letter-spacing:0; color:var(--text-dim); min-height:16px; margin-bottom:16px; }
   .btn-main{
     width:100%; padding:14px; background:var(--amber);
@@ -588,19 +665,46 @@
   </div>
 
   <div id="callScreen" style="display:none;">
-    <button class="back-btn" id="leaveTop"><svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg><span id="leaveTopTxt">CHIQISH</span></button>
+    <div class="vc-header">
+      <div class="vc-header-left">
+        <div class="vc-title" id="vcRoomTitle">Ovozli suhbat</div>
+        <div class="vc-subtitle" id="stateTxt">OFFLINE</div>
+      </div>
+      <div class="vc-header-actions">
+        <button type="button" class="vc-icon-btn" id="leaveTop" title="Chiqish">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          <span id="leaveTopTxt" style="display:none">CHIQISH</span>
+        </button>
+      </div>
+    </div>
 
     <div class="participants" id="participants"></div>
 
-    <div class="meter" id="meter"><canvas id="meterCanvas"></canvas></div>
+    <div class="vc-status status" id="status"></div>
+    <div class="meter" id="meter" aria-hidden="true"><canvas id="meterCanvas"></canvas></div>
 
-    <div class="status" id="status"></div>
+    <div class="vc-controls">
+      <div class="vc-side-wrap">
+        <button type="button" class="vc-side-btn" id="speakerBtn" title="Karnay">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+        </button>
+        <div class="vc-side-label">Karnay</div>
+      </div>
 
-    <button class="btn-main on" id="mainBtn"><span id="mainBtnTxt">CHIQISH</span></button>
+      <div class="vc-side-wrap">
+        <button type="button" class="vc-mic-btn" id="muteBtn" title="Mikrofon">
+          <svg id="muteIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+        </button>
+        <div class="vc-mic-hint" id="muteTxt">Mikrofonni o‘chirish</div>
+      </div>
 
-    <div class="foot">
-      <button class="mute-btn" id="muteBtn"><svg class="btn-icon" id="muteIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg><span id="muteTxt">MIKROFON: OCHIQ</span></button>
-      <span id="stateTxt">OFFLINE</span>
+      <div class="vc-side-wrap">
+        <button type="button" class="vc-side-btn leave" id="mainBtn" title="Chiqish">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 9l-6 3 6 3"/><path d="M22 12H5"/><path d="M16 5v14"/></svg>
+          <span id="mainBtnTxt" style="display:none">CHIQISH</span>
+        </button>
+        <div class="vc-side-label">Chiqish</div>
+      </div>
     </div>
   </div>
 
@@ -790,6 +894,38 @@ const peerNames = {};
 const peerMuted = {};      // pid -> o'sha peer o'zini mute qilganmi
 const peerForceMuted = {}; // pid -> hostmi kimdir uni majburan o'chirganmi
 const pairUnsubs = {};
+let autoJoinAttempted = false;
+let speakerOn = true;
+
+function getRoomFromUrl(){
+  try {
+    const p = new URLSearchParams(window.location.search);
+    const r = (p.get('room') || '').trim().toUpperCase();
+    if (r.length >= 4 && r.length <= 8 && /^[A-Z0-9]+$/.test(r)) return r;
+  } catch (e) {}
+  return '';
+}
+function setRoomInUrl(code){
+  try {
+    const u = new URL(window.location.href);
+    if (code) u.searchParams.set('room', String(code).toUpperCase());
+    else u.searchParams.delete('room');
+    history.replaceState(null, '', u.pathname + u.search + u.hash);
+  } catch (e) {}
+}
+function clearRoomFromUrl(){
+  setRoomInUrl('');
+  try { sessionStorage.removeItem('aloqa-room-pass'); } catch (e) {}
+}
+function saveRoomPass(pass){
+  try {
+    if (pass) sessionStorage.setItem('aloqa-room-pass', pass);
+    else sessionStorage.removeItem('aloqa-room-pass');
+  } catch (e) {}
+}
+function loadRoomPass(){
+  try { return sessionStorage.getItem('aloqa-room-pass') || ''; } catch (e) { return ''; }
+}
 
 function setStatus(text, isErr){ statusEl.textContent = text; statusEl.className = 'status' + (isErr ? ' err' : ''); }
 function setStatusJoin(text, isErr){ statusJoinEl.textContent = text; statusJoinEl.className = 'status' + (isErr ? ' err' : ''); }
@@ -932,6 +1068,37 @@ async function loadOrCreateProfile(user){
     }
   }
   renderAccountView(user);
+  tryAutoJoinFromUrl();
+}
+
+async function tryAutoJoinFromUrl(){
+  if (autoJoinAttempted || joined) return;
+  const code = getRoomFromUrl();
+  if (!code) return;
+  autoJoinAttempted = true;
+
+  // Qo'shilish tabini ochish
+  const joinTabBtn = document.querySelector('.tab-btn[data-tab="join"]');
+  if (joinTabBtn) joinTabBtn.click();
+
+  roomJoinInput.value = code;
+  const savedPass = loadRoomPass();
+  if (savedPass) {
+    passwordJoinInput.value = savedPass;
+    joinPassWrap.style.display = 'block';
+  }
+
+  // Ism bo'sh bo'lsa profil nomi
+  if (!profileNameInput.value.trim()) {
+    const p = currentProfile || {};
+    profileNameInput.value = (p.name && p.name !== 'Mehmon') ? p.name : (p.username || 'Mehmon');
+    localStorage.setItem(PROFILE_NAME_KEY, profileNameInput.value);
+  }
+
+  setStatusJoin('URL dagi xonaga qayta ulanilmoqda: ' + code + '...');
+  setTimeout(() => {
+    if (!joined) joinBtn.click();
+  }, 450);
 }
 
 function renderAccountView(user){
@@ -1524,6 +1691,7 @@ function makeRoomCard(code, data, count, isMine){
   const title = roomDisplayName(code, data);
   const roomMax = Number.isFinite(data.maxParticipants) ? data.maxParticipants : DEFAULT_MAX_PARTICIPANTS;
   const peak = Number.isFinite(data.peakCount) ? data.peakCount : count;
+  const hasPass = !!(data.passwordHash);
   card.innerHTML = `
     <div class="rc-code">${escapeHtml(code)}</div>
     <div class="rc-meta">
@@ -1531,14 +1699,18 @@ function makeRoomCard(code, data, count, isMine){
         <span class="rc-name">${escapeHtml(title)}</span>
         <span class="rc-status-badge ${count > 0 ? 'active' : ''}">${count > 0 ? 'FAOL' : "BO'SH"}</span>
       </div>
-      <div class="rc-count">${count}/${roomMax} kishi · ${isPrivate ? 'Private' : 'Public'}</div>
+      <div class="rc-count">${count}/${roomMax} kishi · ${isPrivate ? 'Private' : 'Public'}${hasPass ? ' · 🔒' : ''}</div>
       <button type="button" class="rc-more-toggle">Ko'proq...</button>
       <div class="rc-details">
         <div class="rc-detail-row">Yaratilgan: <b>${fmtDT(data.createdAt)}</b></div>
         <div class="rc-detail-row">Oxirgi kirish: <b>${fmtDT(data.lastJoinedAt)}</b></div>
         <div class="rc-detail-row">Eng ko'p bo'lgani: <b>${peak} kishi</b></div>
+        ${hasPass ? '<div class="rc-detail-row">Parol: <b>bor</b></div>' : ''}
       </div>
     </div>
+    <button type="button" class="rc-copy-link" title="Havolani nusxalash" aria-label="Copy link">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+    </button>
     <div class="rc-lock">${isPrivate ? lockSvg() : globeSvg()}</div>
     ${canManage ? `
       <div class="room-menu-wrap">
@@ -1560,11 +1732,37 @@ function makeRoomCard(code, data, count, isMine){
     details.classList.toggle('open', willOpen);
     moreToggle.textContent = willOpen ? 'Kamroq' : "Ko'proq...";
   });
+  const copyLinkBtn = card.querySelector('.rc-copy-link');
+  copyLinkBtn.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    const link = window.location.origin + window.location.pathname + '?room=' + encodeURIComponent(code);
+    try {
+      await navigator.clipboard.writeText(link);
+      showToast(hasPass ? 'Havola nusxalandi (parol so‘raladi)' : 'Havola nusxalandi');
+    } catch (err) {
+      // fallback
+      const ta = document.createElement('textarea');
+      ta.value = link;
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); showToast('Havola nusxalandi'); }
+      catch (e2) { prompt('Havolani nusxalang:', link); }
+      document.body.removeChild(ta);
+    }
+  });
   card.addEventListener('click', () => {
     document.querySelector('.tab-btn[data-tab="join"]').click();
     roomJoinInput.value = code;
     roomJoinInput.dispatchEvent(new Event('input'));
-    if (!profileNameInput.value.trim()) profileNameInput.focus();
+    if (hasPass) {
+      joinPassWrap.style.display = 'block';
+      setStatusJoin('Bu xona parol bilan himoyalangan. Parolni kiriting.', true);
+      passwordJoinInput.focus();
+    } else {
+      joinPassWrap.style.display = 'none';
+      passwordJoinInput.value = '';
+      if (!profileNameInput.value.trim()) profileNameInput.focus();
+    }
   });
   if (canManage){
     const moreBtn = card.querySelector('.room-more-btn');
@@ -2021,9 +2219,11 @@ async function establishPeer(room, peerId){
   audioEl.autoplay = true;
   audioEl.playsInline = true;
   audioEl.style.display = 'none';
+  if (typeof speakerOn !== 'undefined') audioEl.muted = !speakerOn;
   document.body.appendChild(audioEl);
   pc.ontrack = (e) => {
     audioEl.srcObject = e.streams[0];
+    if (typeof speakerOn !== 'undefined') audioEl.muted = !speakerOn;
     watchSpeaking(peerId, e.streams[0]);
   };
 
@@ -2128,12 +2328,18 @@ async function ensureMic(setStatusFn){
 
 function enterCallScreen(){
   lobbyEl.style.display = 'none';
-  callScreenEl.style.display = 'block';
+  callScreenEl.style.display = 'flex';
+  callScreenEl.classList.add('active-call');
   joined = true;
   setDot('live');
-  setStatus('Xonaga kirdingiz. Boshqalarni kutyapmiz...');
+  setStatus('');
+  const titleEl = document.getElementById('vcRoomTitle');
+  if (titleEl && roomRef) titleEl.textContent = 'Xona · ' + roomRef.id;
   renderParticipants();
   startLogoReact();
+  applyEffectiveMuteState();
+  // URL da xona kodi — refresh da qayta ulanish uchun
+  if (roomRef && roomRef.id) setRoomInUrl(roomRef.id);
 }
 
 async function attachPresence(room, peersCol){
@@ -2181,14 +2387,21 @@ function watchMyPeerDoc(){
 
 // --- Haqiqiy audio track holatini muted OR forceMuted ga qarab yangilaydi ---
 function applyEffectiveMuteState(){
-  if (!localStream) return;
   const effectivelyMuted = muted || forceMuted;
-  localStream.getAudioTracks().forEach(t => t.enabled = !effectivelyMuted);
-  muteIcon.innerHTML = effectivelyMuted ? MIC_OFF_ICON_INNER : MIC_ICON_INNER;
-  muteTxt.textContent = forceMuted ? 'MIKROFON: HOST O\'CHIRDI' : (muted ? 'MIKROFON: O\'CHIQ' : 'MIKROFON: OCHIQ');
-  muteBtn.classList.toggle('active', effectivelyMuted);
-  // Host meni o'chirib qo'ygan bo'lsa ham, men "yoqish" deb bosolmayman —
-  // faqat host qayta yoqishi mumkin. Lekin o'z holatimni (muted) tanlashim mumkin.
+  if (localStream) {
+    localStream.getAudioTracks().forEach(t => t.enabled = !effectivelyMuted);
+  }
+  if (muteIcon) muteIcon.innerHTML = effectivelyMuted ? MIC_OFF_ICON_INNER : MIC_ICON_INNER;
+  if (muteTxt) {
+    muteTxt.textContent = forceMuted
+      ? 'Host o‘chirdi'
+      : (muted ? 'Mikrofon o‘chiq · bosing' : 'Mikrofonni o‘chirish');
+  }
+  if (muteBtn) {
+    muteBtn.classList.toggle('muted', !!effectivelyMuted && !forceMuted);
+    muteBtn.classList.toggle('forced', !!forceMuted);
+    muteBtn.classList.toggle('active', !!effectivelyMuted);
+  }
   if (myPeerRef) myPeerRef.set({ muted }, { merge: true }).catch(()=>{});
   if (joined) renderParticipants();
 }
@@ -2294,6 +2507,7 @@ joinBtn.addEventListener('click', async () => {
   isRoomHost = (roomData.createdBy === myId); // deyarli hech qachon true bo'lmaydi (join qiluvchi host emas), lekin xavfsizlik uchun tekshiramiz
   muted = false;
   forceMuted = false;
+  saveRoomPass(password || '');
 
   setBtnLoading(joinBtn, false, '', 'QO\'SHILISH');
   enterCallScreen();
@@ -2384,6 +2598,7 @@ createBtn.addEventListener('click', async () => {
     return;
   }
 
+  saveRoomPass(password || '');
   setBtnLoading(createBtn, false, '', 'XONA YARATISH');
   enterCallScreen();
   attachPresence(room, peersCol);
@@ -2442,7 +2657,9 @@ async function leave(){
   forceMuted = false;
   setDot('');
   callScreenEl.style.display = 'none';
+  callScreenEl.classList.remove('active-call');
   lobbyEl.style.display = 'block';
+  clearRoomFromUrl();
 
   passwordJoinInput.value = '';
   passwordCreateInput.value = '';
@@ -2482,15 +2699,27 @@ const MIC_ICON_INNER = '<path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0
 const MIC_OFF_ICON_INNER = '<line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/>';
 
 muteBtn.addEventListener('click', () => {
-  if (!localStream) return;
   if (forceMuted){
-    // Host meni o'chirib qo'ygan — o'zim yoqolmayman, faqat host qayta yoqa oladi.
     setStatus('Xona egasi mikrofoningizni o\'chirib qo\'ygan.', true);
     return;
   }
+  if (!localStream) return;
   muted = !muted;
   applyEffectiveMuteState();
 });
+
+// Karnay: barcha remote audio on/off
+const speakerBtn = document.getElementById('speakerBtn');
+if (speakerBtn) {
+  speakerBtn.addEventListener('click', () => {
+    speakerOn = !speakerOn;
+    speakerBtn.classList.toggle('active', !speakerOn);
+    Object.values(peers).forEach(p => {
+      if (p && p.audioEl) p.audioEl.muted = !speakerOn;
+    });
+    setStatus(speakerOn ? 'Karnay yoqildi' : 'Karnay o‘chirildi');
+  });
+}
 
 window.addEventListener('beforeunload', () => {
   if (myPeerRef) myPeerRef.delete().catch(()=>{});
