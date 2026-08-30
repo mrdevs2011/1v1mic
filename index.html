@@ -512,10 +512,6 @@
           <span class="gid-label">USERNAME</span>
           <span class="gid-val" id="guestUsernameDisplay">--------</span>
         </div>
-        <div class="guest-id-row">
-          <span class="gid-label">ID</span>
-          <span class="gid-val" id="guestIdDisplay">--------</span>
-        </div>
       </div>
       <div class="howto">Mehmon rejimida username tasodifiy beriladi. Ismingiz va profilingiz rasmini o'zgartirishingiz mumkin. Akkaunt ochish uchun <b>HISOB</b> bo'limiga o'ting.</div>
     </div>
@@ -835,7 +831,6 @@ const profileScreenEl = document.getElementById('profileScreen');
 const profileIconBtn = document.getElementById('profileIconBtn');
 const profileBackBtn = document.getElementById('profileBack');
 const guestUsernameDisplayEl = document.getElementById('guestUsernameDisplay');
-const guestIdDisplayEl = document.getElementById('guestIdDisplay');
 
 function openProfileScreen(){
   lobbyEl.style.display = 'none';
@@ -851,9 +846,16 @@ profileBackBtn.addEventListener('click', closeProfileScreen);
 document.querySelectorAll('.ptab-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.ptab-btn').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.ptab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.ptab-panel').forEach(p => {
+      p.classList.remove('active');
+      p.style.display = 'none';
+    });
     btn.classList.add('active');
-    document.getElementById('ppanel-' + btn.dataset.ptab).classList.add('active');
+    const panel = document.getElementById('ppanel-' + btn.dataset.ptab);
+    if (panel) {
+      panel.classList.add('active');
+      panel.style.display = 'block';
+    }
   });
 });
 document.querySelectorAll('.psub-btn').forEach(btn => {
@@ -913,7 +915,6 @@ function renderAccountView(user){
   updateGoogleBtnVisibility(!isAnon);
 
   const p = currentProfile || {};
-  guestIdDisplayEl.textContent = user.uid.slice(0, 8);
   guestUsernameDisplayEl.textContent = p.username || autoUsername(user.uid);
   profileNameInput.value = isAnon ? (p.name || '') : (p.username || p.name);
   localStorage.setItem(PROFILE_NAME_KEY, profileNameInput.value);
@@ -925,13 +926,16 @@ function renderAccountView(user){
   const accountPanel = document.getElementById('ppanel-account');
 
   if (isAnon) {
-    // Mehmon: MEHMON + HISOB tablarini ko'rsat
+    // Mehmon: MEHMON + HISOB tablarini ko'rsat (faqat bittasi active)
     if (profileTabsEl) profileTabsEl.style.display = '';
     if (guestPanel) {
-      guestPanel.style.display = '';
       guestPanel.classList.add('active');
+      guestPanel.style.display = ''; // CSS .active ishlasin
     }
-    if (accountPanel) accountPanel.classList.remove('active');
+    if (accountPanel) {
+      accountPanel.classList.remove('active');
+      accountPanel.style.display = 'none'; // inline block qolib ketmasin
+    }
     document.querySelectorAll('.ptab-btn').forEach(b => {
       b.classList.toggle('active', b.dataset.ptab === 'guest');
     });
@@ -955,14 +959,8 @@ function renderAccountView(user){
 
   accNameInput.value = p.name || '';
   accUsernameInput.value = p.username || autoUsername(user.uid);
-  if (p.avatar) {
-    accAvatarEl.style.backgroundImage = `url(${p.avatar})`;
-    accAvatarEl.textContent = '';
-  } else {
-    accAvatarEl.style.backgroundImage = '';
-    accAvatarEl.textContent = (p.name || '?').charAt(0).toUpperCase();
-    accAvatarEl.style.background = colorForProfile(p.name || 'x');
-  }
+  // Header bilan bir xil avatar ko'rsatish
+  applyAvatarToEl(accAvatarEl, p.name || p.username || '');
 }
 
 // --- Mehmon: ismni tahrirlash Firestore'ga yoziladi (username o'zgarmaydi) ---
@@ -1147,6 +1145,7 @@ async function finishGoogleUser(user) {
   const ref = db.collection('users').doc(user.uid);
   const snap = await ref.get();
   if (!snap.exists) {
+    // Yangi Google akkaunt (mehmon emas)
     currentProfile = {
       name: user.displayName || 'Foydalanuvchi',
       username: autoUsername(user.uid),
@@ -1157,20 +1156,39 @@ async function finishGoogleUser(user) {
     await ref.set(currentProfile);
     await db.collection('usernames').doc(currentProfile.username).set({ uid: user.uid }).catch(()=>{});
   } else {
-    currentProfile = snap.data();
-    // anonymous → google upgrade
-    if (currentProfile.provider === 'anonymous') {
-      currentProfile.provider = 'google.com';
-      if (user.displayName) currentProfile.name = user.displayName;
-      if (user.photoURL) currentProfile.avatar = user.photoURL;
-      await ref.set({
-        provider: 'google.com',
-        name: currentProfile.name,
-        avatar: currentProfile.avatar || null
-      }, { merge: true }).catch((e) => console.error('Google profile update:', e));
+    currentProfile = snap.data() || {};
+    // Mehmon → Google: ism + rasm Google dan, username O'ZGARMAYDI (guest username qoladi)
+    const guestUsername = currentProfile.username || autoUsername(user.uid);
+    const updates = {
+      provider: 'google.com',
+      name: user.displayName || currentProfile.name || 'Foydalanuvchi',
+      // username ni ataylab yozmaymiz — eski guest username saqlanadi
+    };
+    if (user.photoURL) {
+      updates.avatar = user.photoURL;
+      currentProfile.avatar = user.photoURL;
+    }
+    currentProfile.provider = 'google.com';
+    currentProfile.name = updates.name;
+    currentProfile.username = guestUsername;
+    await ref.set(updates, { merge: true }).catch((e) => console.error('Google profile update:', e));
+    // Guest username ni usernames kolleksiyasiga band qilish (agar yo'q bo'lsa)
+    if (guestUsername) {
+      await db.collection('usernames').doc(guestUsername).set({ uid: user.uid }).catch(()=>{});
     }
   }
+  if (currentProfile.avatar) localStorage.setItem('aloqa-xonasi-avatar', currentProfile.avatar);
   renderAccountView(user);
+}
+
+function isPopupBlockedErr(err) {
+  if (!err) return false;
+  const c = err.code || '';
+  const m = String(err.message || '');
+  return c === 'auth/popup-blocked'
+    || c === 'auth/popup-closed-by-user'
+    || m.toLowerCase().includes('popup')
+    || m.toLowerCase().includes('blocked');
 }
 
 googleSignInBtn.addEventListener('click', async () => {
@@ -1178,35 +1196,50 @@ googleSignInBtn.addEventListener('click', async () => {
   const user = auth.currentUser;
   try {
     let result;
-    if (user && user.isAnonymous) {
-      try {
+    try {
+      if (user && user.isAnonymous) {
         result = await user.linkWithPopup(provider);
-      } catch (linkErr) {
-        // Google akkaunt boshqa UID da bo'lsa — oddiy kirish
-        if (linkErr.code === 'auth/credential-already-in-use' || linkErr.code === 'auth/email-already-in-use') {
-          result = await auth.signInWithPopup(provider);
-        } else if (linkErr.code === 'auth/popup-blocked' || linkErr.code === 'auth/popup-closed-by-user') {
-          // Popup bloklangan — redirect
-          await user.linkWithRedirect(provider);
-          return;
-        } else {
-          throw linkErr;
-        }
-      }
-    } else {
-      try {
+      } else {
         result = await auth.signInWithPopup(provider);
-      } catch (popErr) {
-        if (popErr.code === 'auth/popup-blocked' || popErr.code === 'auth/popup-closed-by-user') {
-          await auth.signInWithRedirect(provider);
-          return;
+      }
+    } catch (firstErr) {
+      // Google akkaunt boshqa UID da band → oddiy sign-in
+      if (firstErr.code === 'auth/credential-already-in-use' || firstErr.code === 'auth/email-already-in-use') {
+        try {
+          result = await auth.signInWithPopup(provider);
+        } catch (e2) {
+          if (isPopupBlockedErr(e2)) {
+            await auth.signInWithRedirect(provider);
+            return;
+          }
+          throw e2;
         }
-        throw popErr;
+      } else if (isPopupBlockedErr(firstErr)) {
+        // Popup bloklangan — redirect (alert chiqarmaymiz)
+        if (user && user.isAnonymous) {
+          await user.linkWithRedirect(provider);
+        } else {
+          await auth.signInWithRedirect(provider);
+        }
+        return;
+      } else {
+        throw firstErr;
       }
     }
     if (result && result.user) await finishGoogleUser(result.user);
   } catch (err) {
     console.error('Google kirish xatosi:', err);
+    // popup-blocked ni foydalanuvchiga ko'rsatmaymiz
+    if (isPopupBlockedErr(err)) {
+      try {
+        const u = auth.currentUser;
+        if (u && u.isAnonymous) await u.linkWithRedirect(new firebase.auth.GoogleAuthProvider());
+        else await auth.signInWithRedirect(new firebase.auth.GoogleAuthProvider());
+      } catch (re) {
+        console.error(re);
+      }
+      return;
+    }
     alert('Google bilan kirib bo\'lmadi: ' + (err.message || err.code || err));
   }
 });
