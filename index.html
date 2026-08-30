@@ -1001,7 +1001,8 @@ document.getElementById('registerBtn').addEventListener('click', async () => {
   if (!name || !usernameRaw || !pass) { setStatusEl(st, "Ism, username va parolni to'ldiring", true); return; }
   if (pass !== pass2) { setStatusEl(st, 'Parollar mos emas', true); return; }
   if (pass.length < 6) { setStatusEl(st, "Parol kamida 6 belgidan iborat bo'lsin", true); return; }
-  const username = usernameRaw.replace(/\s+/g, '').toLowerCase();
+  const username = usernameRaw.replace(/\s+/g, '').toLowerCase().replace(/[^a-z0-9_]/g, '');
+  if (username.length < 3) { setStatusEl(st, "Username kamida 3 belgi (faqat a-z, 0-9, _)", true); return; }
 
   try {
     const takenSnap = await db.collection('usernames').doc(username).get();
@@ -1011,21 +1012,36 @@ document.getElementById('registerBtn').addEventListener('click', async () => {
     const user = auth.currentUser;
     let resultUser;
     if (user && user.isAnonymous) {
-      // Mehmon → Email akkauntga LINK: UID saqlanadi, mehmon davridagi data sync o'tadi
+      // Mehmon → Email akkauntga LINK: UID saqlanadi
       const res = await user.linkWithCredential(credential);
       resultUser = res.user;
     } else {
       const res = await auth.createUserWithEmailAndPassword(emailFromUsername(username), pass);
       resultUser = res.user;
     }
-    currentProfile = { name, username, avatar: currentProfile?.avatar || null, provider: 'password', createdAt: Date.now() };
-    await db.collection('users').doc(resultUser.uid).set(currentProfile);
+    // createdAt ni o'zgartirmaymiz (rules unchanged('createdAt') talab qiladi)
+    const existingCreatedAt = (currentProfile && currentProfile.createdAt) || Date.now();
+    currentProfile = {
+      name,
+      username,
+      avatar: currentProfile?.avatar || null,
+      provider: 'password',
+      createdAt: existingCreatedAt
+    };
+    // merge: mavjud maydonlarni saqlab, faqat keraklilarini yangilaydi
+    await db.collection('users').doc(resultUser.uid).set(currentProfile, { merge: true });
     await db.collection('usernames').doc(username).set({ uid: resultUser.uid });
     setStatusEl(st, "Ro'yxatdan o'tildi! Xush kelibsiz, " + name);
     renderAccountView(resultUser);
   } catch (err) {
     console.error(err);
-    setStatusEl(st, err.code === 'auth/email-already-in-use' ? 'Bu username band' : "Xatolik: " + err.message, true);
+    let msg = err.message || 'Noma\'lum xato';
+    if (err.code === 'auth/email-already-in-use') msg = 'Bu username band (allaqachon ro\'yxatdan o\'tilgan)';
+    else if (err.code === 'auth/weak-password') msg = 'Parol juda zaif (kamida 6 belgi)';
+    else if (err.code === 'permission-denied' || (err.message && err.message.includes('permission'))) {
+      msg = 'Firestore ruxsati yo\'q. Rules\'da provider o\'zgarishiga ruxsat bering.';
+    }
+    setStatusEl(st, msg, true);
   }
 });
 
@@ -1126,37 +1142,85 @@ document.getElementById('signOutBtn').addEventListener('click', async () => {
   // onAuthStateChanged avtomatik signInAnonymously() ni chaqiradi — yangi mehmon UID
 });
 
-// --- Google bilan kirish/link (redirect oqimi — mobilga ishonchli) ---
-googleSignInBtn.addEventListener('click', () => {
+// --- Google bilan kirish/link (popup — ishonchliroq; redirect fallback) ---
+async function finishGoogleUser(user) {
+  const ref = db.collection('users').doc(user.uid);
+  const snap = await ref.get();
+  if (!snap.exists) {
+    currentProfile = {
+      name: user.displayName || 'Foydalanuvchi',
+      username: autoUsername(user.uid),
+      avatar: user.photoURL || null,
+      provider: 'google.com',
+      createdAt: Date.now()
+    };
+    await ref.set(currentProfile);
+    await db.collection('usernames').doc(currentProfile.username).set({ uid: user.uid }).catch(()=>{});
+  } else {
+    currentProfile = snap.data();
+    // anonymous → google upgrade
+    if (currentProfile.provider === 'anonymous') {
+      currentProfile.provider = 'google.com';
+      if (user.displayName) currentProfile.name = user.displayName;
+      if (user.photoURL) currentProfile.avatar = user.photoURL;
+      await ref.set({
+        provider: 'google.com',
+        name: currentProfile.name,
+        avatar: currentProfile.avatar || null
+      }, { merge: true }).catch((e) => console.error('Google profile update:', e));
+    }
+  }
+  renderAccountView(user);
+}
+
+googleSignInBtn.addEventListener('click', async () => {
   const provider = new firebase.auth.GoogleAuthProvider();
   const user = auth.currentUser;
-  if (user && user.isAnonymous) {
-    user.linkWithRedirect(provider);
-  } else {
-    auth.signInWithRedirect(provider);
+  try {
+    let result;
+    if (user && user.isAnonymous) {
+      try {
+        result = await user.linkWithPopup(provider);
+      } catch (linkErr) {
+        // Google akkaunt boshqa UID da bo'lsa — oddiy kirish
+        if (linkErr.code === 'auth/credential-already-in-use' || linkErr.code === 'auth/email-already-in-use') {
+          result = await auth.signInWithPopup(provider);
+        } else if (linkErr.code === 'auth/popup-blocked' || linkErr.code === 'auth/popup-closed-by-user') {
+          // Popup bloklangan — redirect
+          await user.linkWithRedirect(provider);
+          return;
+        } else {
+          throw linkErr;
+        }
+      }
+    } else {
+      try {
+        result = await auth.signInWithPopup(provider);
+      } catch (popErr) {
+        if (popErr.code === 'auth/popup-blocked' || popErr.code === 'auth/popup-closed-by-user') {
+          await auth.signInWithRedirect(provider);
+          return;
+        }
+        throw popErr;
+      }
+    }
+    if (result && result.user) await finishGoogleUser(result.user);
+  } catch (err) {
+    console.error('Google kirish xatosi:', err);
+    alert('Google bilan kirib bo\'lmadi: ' + (err.message || err.code || err));
   }
 });
 
 auth.getRedirectResult().then(async (result) => {
   if (result && result.user) {
-    const user = result.user;
-    const ref = db.collection('users').doc(user.uid);
-    const snap = await ref.get();
-    if (!snap.exists) {
-      currentProfile = {
-        name: user.displayName || 'Foydalanuvchi',
-        username: autoUsername(user.uid),
-        avatar: user.photoURL || null,
-        provider: 'google.com',
-        createdAt: Date.now()
-      };
-      await ref.set(currentProfile);
-      await db.collection('usernames').doc(currentProfile.username).set({ uid: user.uid }).catch(()=>{});
-    }
-    renderAccountView(user);
+    await finishGoogleUser(result.user);
   }
 }).catch((err) => {
   console.error('Google redirect xatosi:', err);
+  if (err && err.code && err.code !== 'auth/popup-closed-by-user') {
+    // faqat jiddiy xatolarni ko'rsatamiz
+    console.warn('Google redirect failed:', err.code, err.message);
+  }
 });
 visPublicBtn.addEventListener('click', () => setVisibility('public'));
 visPrivateBtn.addEventListener('click', () => setVisibility('private'));
