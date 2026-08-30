@@ -287,101 +287,121 @@
   .room-card .rc-detail-row b{ color:var(--text); font-weight:600; }
   .empty-list{ text-align:center; font-size:12px; color:var(--text-dim); letter-spacing:0; padding:24px 8px; }
 
-  /* —— Call / Voice Chat overlay —— */
+  /* —— Call / Voice Chat overlay (Telegram uslubi) —— */
   #callScreen{
-    display:none; flex-direction:column; min-height:420px;
+    display:none; flex-direction:column; min-height:440px;
+    background: linear-gradient(180deg, #1a1f2b 0%, #12151c 100%);
+    margin: -4px -2px 0; padding: 6px 4px 10px; border-radius: 16px;
   }
   #callScreen.active-call{ display:flex !important; }
   .vc-header{
     display:flex; align-items:center; justify-content:space-between;
-    margin-bottom:12px; padding-bottom:10px; border-bottom:1px solid var(--line);
+    margin-bottom:6px; padding:4px 6px 12px;
+    border-bottom:1px solid rgba(255,255,255,0.06);
   }
   .vc-header-left{ min-width:0; }
-  .vc-title{ font-size:16px; font-weight:700; color:var(--text); letter-spacing:0; }
-  .vc-subtitle{ font-size:12px; color:var(--text-dim); margin-top:2px; }
+  .vc-title{ font-size:17px; font-weight:700; color:#f2f4f7; letter-spacing:0.2px; }
+  .vc-subtitle{ font-size:12px; color:#8b93a7; margin-top:3px; font-weight:500; }
   .vc-header-actions{ display:flex; gap:6px; }
   .vc-icon-btn{
-    width:36px; height:36px; border-radius:50%; border:1px solid var(--line);
-    background:var(--input-bg); color:var(--text-dim); cursor:pointer;
+    width:34px; height:34px; border-radius:50%; border:none;
+    background:rgba(255,255,255,0.06); color:#9aa3b5; cursor:pointer;
     display:flex; align-items:center; justify-content:center; padding:0;
   }
-  .vc-icon-btn:hover{ color:var(--amber); border-color:var(--amber); }
-  .vc-icon-btn svg{ width:18px; height:18px; }
+  .vc-icon-btn:hover{ background:rgba(255,255,255,0.1); color:#fff; }
+  .vc-icon-btn svg{ width:16px; height:16px; }
 
   .participants{
-    display:flex; flex-direction:column; gap:0;
-    flex:1; min-height:120px; max-height:280px; overflow-y:auto;
-    margin-bottom:8px; padding:4px 0;
+    display:flex; flex-direction:column; gap:2px;
+    flex:1; min-height:140px; max-height:300px; overflow-y:auto;
+    margin-bottom:4px; padding:6px 2px;
   }
-  .participants::-webkit-scrollbar{ width:4px; }
-  .participants::-webkit-scrollbar-thumb{ background:var(--line); border-radius:2px; }
+  .participants::-webkit-scrollbar{ width:3px; }
+  .participants::-webkit-scrollbar-thumb{ background:rgba(255,255,255,0.12); border-radius:2px; }
   .prow{
     display:flex; align-items:center; gap:12px;
-    padding:10px 8px; border-radius:12px; transition:background .15s;
+    padding:8px 10px; border-radius:14px; transition:background .15s;
   }
-  .prow:hover{ background:rgba(255,255,255,0.03); }
+  .prow:hover{ background:rgba(255,255,255,0.04); }
   .avatar{
-    width:42px; height:42px; border-radius:50%; flex-shrink:0;
+    width:44px; height:44px; border-radius:50%; flex-shrink:0;
     display:flex; align-items:center; justify-content:center;
-    font-family: var(--font); font-weight:600; font-size:15px; color:#fff;
+    font-family: var(--font); font-weight:600; font-size:16px; color:#fff;
     background-size:cover; background-position:center;
+    box-shadow: 0 0 0 0 transparent;
+    transition: box-shadow .2s;
+  }
+  .avatar.speaking-ring{
+    box-shadow: 0 0 0 2.5px #2dd48a, 0 0 12px rgba(45, 212, 138, 0.35);
   }
   .pinfo{ flex:1; min-width:0; }
   .pname{
-    font-family: var(--font); font-size:14px; font-weight:600;
-    color:var(--text); letter-spacing:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    font-family: var(--font); font-size:15px; font-weight:600;
+    color:#eef1f6; letter-spacing:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   }
-  .pname.me-label::after{ content:' (Siz)'; color:var(--text-dim); font-weight:400; }
-  .pstate{ font-family: var(--font); font-size:12px; margin-top:2px; letter-spacing:0; }
-  .pstate.listening{ color:#5b9fd4; }
-  .pstate.speaking{ color:var(--green); font-weight:600; }
-  .pstate.invited{ color:var(--text-dim); }
-  .picon{ flex-shrink:0; opacity:0.85; }
+  .pname.me-label::after{ content:' (Siz)'; color:#8b93a7; font-weight:400; font-size:13px; }
+  .pstate{ font-family: var(--font); font-size:12.5px; margin-top:2px; letter-spacing:0; font-weight:500; }
+  .pstate.listening{ color:#5eb0f0; }
+  .pstate.speaking{ color:#2dd48a; }
+  .pstate.invited{ color:#7a8499; }
+  .picon{ flex-shrink:0; opacity:0.9; width:28px; height:28px;
+    display:flex; align-items:center; justify-content:center; }
   .picon svg{ display:block; width:20px; height:20px; }
+  .picon.muted-icon{ color:#e85d5d; }
+  .picon.ok-icon{ color:#8b93a7; }
+  .picon.conn-icon{ color:#6b7588; opacity:0.7; }
 
-  .vc-status{ text-align:center; font-size:12px; color:var(--text-dim); min-height:18px; margin:4px 0 8px; }
-  .vc-status.err{ color:var(--red); }
+  .vc-status{ text-align:center; font-size:12px; color:#8b93a7; min-height:16px; margin:2px 0 4px; }
+  .vc-status.err{ color:#e85d5d; }
 
   .vc-controls{
-    display:flex; align-items:center; justify-content:center; gap:28px;
-    padding:16px 8px 8px; margin-top:auto;
+    display:flex; align-items:flex-end; justify-content:center; gap:22px;
+    padding:18px 8px 6px; margin-top:auto;
+    background: radial-gradient(ellipse at 50% 120%, rgba(45, 212, 138, 0.08) 0%, transparent 55%);
   }
   .vc-side-btn{
-    width:48px; height:48px; border-radius:50%; border:none;
-    background:#2a3140; color:#c5cad3; cursor:pointer;
-    display:flex; flex-direction:column; align-items:center; justify-content:center;
-    gap:0; transition: transform .12s, background .15s;
+    width:52px; height:52px; border-radius:50%; border:none;
+    background:#2c3344; color:#c5cad6; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    transition: transform .12s, background .15s, box-shadow .15s;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.25);
   }
-  .vc-side-btn:hover{ background:#343b4d; }
-  .vc-side-btn.active{ background:var(--amber); color:#fff; }
-  .vc-side-btn.leave{ background:#e74c3c; color:#fff; }
-  .vc-side-btn.leave:hover{ background:#c0392b; }
-  .vc-side-btn svg{ width:22px; height:22px; }
+  .vc-side-btn:hover{ background:#383f52; transform:scale(1.04); }
+  .vc-side-btn.active{ background:#4a5568; color:#fff; }
+  .vc-side-btn.leave{
+    background:#e33c3c; color:#fff;
+    box-shadow: 0 4px 16px rgba(227, 60, 60, 0.4);
+  }
+  .vc-side-btn.leave:hover{ background:#c92f2f; }
+  .vc-side-btn.leave.confirming{ box-shadow: 0 0 0 3px rgba(227,60,60,0.45); }
+  .vc-side-btn svg{ width:24px; height:24px; }
   .vc-side-label{
-    font-size:10px; color:var(--text-dim); text-align:center; margin-top:6px; font-weight:500;
+    font-size:11px; color:#8b93a7; text-align:center; margin-top:8px; font-weight:500;
   }
-  .vc-side-wrap{ display:flex; flex-direction:column; align-items:center; }
+  .vc-side-wrap{ display:flex; flex-direction:column; align-items:center; width:72px; }
 
   .vc-mic-btn{
-    width:84px; height:84px; border-radius:50%; border:none; cursor:pointer;
-    background: linear-gradient(145deg, #3dd68c, #1a9f6a);
+    width:88px; height:88px; border-radius:50%; border:none; cursor:pointer;
+    background: linear-gradient(160deg, #4dffb0 0%, #1ec97a 45%, #12a864 100%);
     color:#fff; display:flex; align-items:center; justify-content:center;
-    box-shadow: 0 8px 28px rgba(29, 185, 120, 0.35);
-    transition: transform .12s, box-shadow .15s, background .2s;
+    box-shadow:
+      0 0 0 6px rgba(45, 212, 138, 0.12),
+      0 10px 32px rgba(18, 168, 100, 0.45);
+    transition: transform .12s, box-shadow .2s, background .2s, filter .15s;
   }
-  .vc-mic-btn:hover{ transform:scale(1.04); }
-  .vc-mic-btn:active{ transform:scale(0.97); }
+  .vc-mic-btn:hover{ transform:scale(1.05); filter:brightness(1.05); }
+  .vc-mic-btn:active{ transform:scale(0.96); }
   .vc-mic-btn.muted{
-    background: linear-gradient(145deg, #5a6270, #3d4450);
-    box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+    background: linear-gradient(160deg, #5c6578 0%, #3d4454 100%);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
   }
   .vc-mic-btn.forced{
-    background: linear-gradient(145deg, #e74c3c, #c0392b);
-    box-shadow: 0 8px 24px rgba(231, 76, 60, 0.3);
+    background: linear-gradient(160deg, #ff6b6b 0%, #c0392b 100%);
+    box-shadow: 0 0 0 6px rgba(227,60,60,0.15), 0 10px 28px rgba(192,57,43,0.4);
   }
-  .vc-mic-btn svg{ width:36px; height:36px; }
+  .vc-mic-btn svg{ width:38px; height:38px; stroke-width:2.2; }
   .vc-mic-hint{
-    text-align:center; font-size:12px; color:var(--text-dim); margin-top:10px; margin-bottom:4px;
+    text-align:center; font-size:12px; color:#8b93a7; margin-top:10px; margin-bottom:2px; font-weight:500;
   }
 
   .meter{ display:none !important; }
@@ -700,7 +720,7 @@
 
       <div class="vc-side-wrap">
         <button type="button" class="vc-side-btn leave" id="mainBtn" title="Chiqish">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 9l-6 3 6 3"/><path d="M22 12H5"/><path d="M16 5v14"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7a2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.42 19.42 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91"/><line x1="23" y1="1" x2="1" y2="23"/></svg>
           <span id="mainBtnTxt" style="display:none">CHIQISH</span>
         </button>
         <div class="vc-side-label">Chiqish</div>
@@ -2108,14 +2128,14 @@ function renderParticipants(){
   meRow.className = 'prow';
   const meEffectivelyMuted = muted || forceMuted;
   const meSpeaking = !meEffectivelyMuted && speakingState[myId];
-  const meStateLabel = forceMuted ? 'xona egasi o\'chirdi' : (muted ? 'mikrofon o\'chiq' : (meSpeaking ? 'gapiryapti' : 'tinglayapti'));
+  const meStateLabel = forceMuted ? 'host o\'chirdi' : (muted ? 'mikrofon o\'chiq' : (meSpeaking ? 'gapiryapti' : 'tinglayapti'));
   meRow.innerHTML = `
-    <div class="avatar" style="background:${colorFor(myId)}">${initialFor(myName)}</div>
+    <div class="avatar ${meSpeaking ? 'speaking-ring' : ''}" style="background:${colorFor(myId)}">${initialFor(myName)}</div>
     <div class="pinfo">
-      <div class="pname me-label">${escapeHtml(myName || 'Siz')}${isRoomHost ? ' (host)' : ''}</div>
+      <div class="pname me-label">${escapeHtml(myName || 'Siz')}${isRoomHost ? ' · host' : ''}</div>
       <div class="pstate ${meEffectivelyMuted ? 'invited' : (meSpeaking ? 'speaking' : 'listening')}">${meStateLabel}</div>
     </div>
-    <div class="picon" style="color:${meEffectivelyMuted ? 'var(--red)' : 'var(--text-dim)'}">${meEffectivelyMuted ? micOffSvg() : micSvg()}</div>
+    <div class="picon ${meEffectivelyMuted ? 'muted-icon' : 'ok-icon'}">${meEffectivelyMuted ? micOffSvg() : micSvg()}</div>
   `;
   participantsEl.appendChild(meRow);
 
@@ -2126,23 +2146,22 @@ function renderParticipants(){
     const speaking = connected && !pMuted && speakingState[pid];
     const row = document.createElement('div');
     row.className = 'prow';
-    let stateLabel, stateClass;
-    if (!connected){ stateLabel = 'ulanmoqda...'; stateClass = 'invited'; }
-    else if (pMuted){ stateLabel = 'mikrofon o\'chiq'; stateClass = 'invited'; }
-    else { stateLabel = speaking ? 'gapiryapti' : 'tinglayapti'; stateClass = speaking ? 'speaking' : 'listening'; }
+    let stateLabel, stateClass, iconClass;
+    if (!connected){ stateLabel = 'ulanmoqda...'; stateClass = 'invited'; iconClass = 'conn-icon'; }
+    else if (pMuted){ stateLabel = 'mikrofon o\'chiq'; stateClass = 'invited'; iconClass = 'muted-icon'; }
+    else { stateLabel = speaking ? 'gapiryapti' : 'tinglayapti'; stateClass = speaking ? 'speaking' : 'listening'; iconClass = 'ok-icon'; }
     const micIconHtml = !connected ? inviteSvg() : (pMuted ? micOffSvg() : micSvg());
-    const micIconColor = pMuted ? 'var(--red)' : 'var(--text-dim)';
     const hostMuteBtnHtml = (isRoomHost && connected) ? `
-      <button class="host-mute-btn" data-pid="${pid}" title="${pMuted ? 'Mikrofonini yoqish' : 'Mikrofonini o\'chirish'}" style="border:none;background:transparent;cursor:pointer;color:${pMuted ? 'var(--red)' : 'var(--text-dim)'};display:flex;align-items:center;padding:4px;flex-shrink:0;">
+      <button class="host-mute-btn" data-pid="${pid}" title="${pMuted ? 'Mikrofonini yoqish' : 'Mikrofonini o\'chirish'}" style="border:none;background:transparent;cursor:pointer;color:${pMuted ? '#e85d5d' : '#8b93a7'};display:flex;align-items:center;padding:4px;flex-shrink:0;">
         ${pMuted ? micOffSvg() : micSvg()}
       </button>` : '';
     row.innerHTML = `
-      <div class="avatar" style="background:${colorFor(pid)}">${initialFor(displayName(pid))}</div>
+      <div class="avatar ${speaking ? 'speaking-ring' : ''}" style="background:${colorFor(pid)}">${initialFor(displayName(pid))}</div>
       <div class="pinfo">
         <div class="pname">${escapeHtml(displayName(pid))}</div>
         <div class="pstate ${stateClass}">${stateLabel}</div>
       </div>
-      <div class="picon" style="color:${micIconColor}">${micIconHtml}</div>
+      <div class="picon ${iconClass}">${micIconHtml}</div>
       ${hostMuteBtnHtml}
     `;
     participantsEl.appendChild(row);
@@ -2158,7 +2177,7 @@ function renderParticipants(){
   }
 
   const n = Object.keys(peers).length + 1;
-  stateTxt.textContent = (n <= 1) ? 'YOLG\'IZ XONADA' : n + ' KISHI XONADA';
+  stateTxt.textContent = (n <= 1) ? '1 online' : n + ' online';
 }
 
 function escapeHtml(s){
@@ -2334,7 +2353,7 @@ function enterCallScreen(){
   setDot('live');
   setStatus('');
   const titleEl = document.getElementById('vcRoomTitle');
-  if (titleEl && roomRef) titleEl.textContent = 'Xona · ' + roomRef.id;
+  if (titleEl) titleEl.textContent = roomRef ? ('Xona · ' + roomRef.id) : 'Ovozli suhbat';
   renderParticipants();
   startLogoReact();
   applyEffectiveMuteState();
@@ -2395,7 +2414,7 @@ function applyEffectiveMuteState(){
   if (muteTxt) {
     muteTxt.textContent = forceMuted
       ? 'Host o‘chirdi'
-      : (muted ? 'Mikrofon o‘chiq · bosing' : 'Mikrofonni o‘chirish');
+      : (muted ? 'Bosing — yoqish' : 'Bosing — o‘chirish');
   }
   if (muteBtn) {
     muteBtn.classList.toggle('muted', !!effectivelyMuted && !forceMuted);
