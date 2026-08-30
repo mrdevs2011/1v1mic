@@ -2257,38 +2257,34 @@ joinBtn.addEventListener('click', async () => {
 
   if (!(await ensureMic(setStatusJoin))){ setBtnLoading(joinBtn, false, '', 'QO\'SHILISH'); return; }
 
-  // --- Transaction bilan sig'im tekshiruvi va joylashish (race condition oldini olish) ---
+  // --- Sig'im tekshiruvi + peer yozish ---
+  // Eski kod: tx.get(peersCol) → invalid-argument (transaction da butun kolleksiya o'qib bo'lmaydi)
   const roomMaxParticipants = Number.isFinite(roomData.maxParticipants) ? roomData.maxParticipants : DEFAULT_MAX_PARTICIPANTS;
   const peersCol = roomRef.collection('peers');
   const myPeerDoc = peersCol.doc(myId);
   try{
-    await db.runTransaction(async (tx) => {
-      const existing = await tx.get(peersCol);
-      const roomSnapTx = await tx.get(roomRef);
-      if (existing.size >= roomMaxParticipants){
-        throw new Error('ROOM_FULL:' + existing.size);
-      }
-      existing.forEach(doc => {
-        if (doc.id !== myId){
-          const d = doc.data();
-          peerNames[doc.id] = (d.name || doc.id.slice(0,4));
-          peerMuted[doc.id] = !!d.muted;
-          peerForceMuted[doc.id] = !!d.forceMuted;
-        }
-      });
-      const newCount = existing.size + 1;
-      const prevPeak = (roomSnapTx.exists && Number.isFinite(roomSnapTx.data().peakCount)) ? roomSnapTx.data().peakCount : 0;
-      tx.set(myPeerDoc, { joinedAt: Date.now(), name: enteredName, muted: false, forceMuted: false });
-      tx.set(roomRef, { lastJoinedAt: Date.now(), peakCount: Math.max(prevPeak, newCount) }, { merge: true });
-    });
-  }catch(e){
-    console.error('join transaction:', e);
-    if (String(e.message).startsWith('ROOM_FULL')){
-      const count = String(e.message).split(':')[1];
-      setStatusJoin(`Xona to'lgan (max ${roomMaxParticipants} kishi, hozir ${count}).`, true);
-    } else {
-      setStatusJoin('Firestore xatosi (qo\'shilish): ' + (e.code || e.message), true);
+    const existing = await peersCol.get();
+    const alreadyIn = existing.docs.some(d => d.id === myId);
+    if (!alreadyIn && existing.size >= roomMaxParticipants){
+      setStatusJoin(`Xona to'lgan (max ${roomMaxParticipants} kishi, hozir ${existing.size}).`, true);
+      setBtnLoading(joinBtn, false, '', 'QO\'SHILISH');
+      return;
     }
+    existing.forEach(doc => {
+      if (doc.id !== myId){
+        const d = doc.data();
+        peerNames[doc.id] = (d.name || doc.id.slice(0,4));
+        peerMuted[doc.id] = !!d.muted;
+        peerForceMuted[doc.id] = !!d.forceMuted;
+      }
+    });
+    const newCount = alreadyIn ? existing.size : existing.size + 1;
+    const prevPeak = Number.isFinite(roomData.peakCount) ? roomData.peakCount : 0;
+    await myPeerDoc.set({ joinedAt: Date.now(), name: enteredName, muted: false, forceMuted: false });
+    await roomRef.set({ lastJoinedAt: Date.now(), peakCount: Math.max(prevPeak, newCount) }, { merge: true });
+  }catch(e){
+    console.error('join write:', e);
+    setStatusJoin('Firestore xatosi (qo\'shilish): ' + (e.code || e.message), true);
     setBtnLoading(joinBtn, false, '', 'QO\'SHILISH');
     return;
   }
