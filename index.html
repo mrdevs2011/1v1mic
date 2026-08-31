@@ -431,8 +431,6 @@
   .howto{ margin-top:14px; padding-top:14px; border-top:1px solid var(--line); font-size:13px; line-height:1.6; color:var(--text-dim); }
   .howto b{ color:var(--text); }
   .err{ color:var(--red); }
-  .back-btn{ background:var(--input-bg); border:1px solid var(--line); color:var(--amber); font-family:var(--font); font-size:13px; letter-spacing:0; font-weight:600; padding:8px 12px; border-radius:var(--radius-sm); cursor:pointer; margin-bottom:14px; transition:all .15s; }
-  .back-btn:hover{ border-color:var(--amber); color:var(--amber); background:var(--amber-dim); }
   .profile-box{ border:1px solid var(--line); border-radius:var(--radius); padding:12px; margin-bottom:16px; background:var(--input-bg); }
   .profile-row{ display:flex; align-items:center; gap:10px; }
   .profile-avatar{
@@ -471,7 +469,7 @@
   .btn-main.loading{ opacity:.7; cursor:wait; }
 
   .btn-icon{ width:14px; height:14px; flex-shrink:0; display:inline-block; vertical-align:-2px; }
-  .mic-retry-btn, .copy-btn, .back-btn, .mute-btn{ display:inline-flex; align-items:center; justify-content:center; gap:6px; }
+  .mic-retry-btn, .copy-btn, .mute-btn{ display:inline-flex; align-items:center; justify-content:center; gap:6px; }
   .vis-btn .vis-label{ display:flex; align-items:center; justify-content:center; gap:6px; }
   .rc-lock svg{ width:16px; height:16px; display:block; }
   .btn-main .btn-icon{ width:16px; height:16px; }
@@ -609,8 +607,6 @@
   </div>
 
   <div id="profileScreen" style="display:none;">
-    <button class="back-btn" id="profileBack"><svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>ORQAGA</button>
-
     <div class="tabs" id="profileTabs">
       <button class="ptab-btn active" data-ptab="guest">MEHMON</button>
       <button class="ptab-btn" data-ptab="account">HISOB</button>
@@ -1135,9 +1131,11 @@ document.addEventListener('click', closeAllRoomMenus);
 const auth = firebase.auth();
 const profileScreenEl = document.getElementById('profileScreen');
 const profileIconBtn = document.getElementById('profileIconBtn');
-const profileBackBtn = document.getElementById('profileBack');
 const guestUsernameDisplayEl = document.getElementById('guestUsernameDisplay');
 
+function isProfileScreenOpen(){
+  return profileScreenEl.style.display !== 'none';
+}
 function openProfileScreen(){
   lobbyEl.style.display = 'none';
   profileScreenEl.style.display = 'block';
@@ -1153,9 +1151,12 @@ profileIconBtn.addEventListener('click', () => {
     if (url) openAvatarLightbox(url);
     return;
   }
-  openProfileScreen();
+  if (isProfileScreenOpen()) {
+    closeProfileScreen();
+  } else {
+    openProfileScreen();
+  }
 });
-profileBackBtn.addEventListener('click', closeProfileScreen);
 
 document.querySelectorAll('.ptab-btn').forEach(btn => {
   btn.addEventListener('click', () => {
