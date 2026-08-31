@@ -386,54 +386,47 @@
     padding:8px 10px; border-radius:14px; transition:background .15s;
   }
   .prow:hover{ background:rgba(255,255,255,0.04); }
-  /* Avatar'ni o'rab turuvchi konteyner — ripple halqalar shu ichida joylashadi,
-     shunda ular flex-layout'ni buzmaydi va avatar bilan bir markazda turadi */
+  /* Avatar'ni o'rab turuvchi konteyner */
   .avatar-wrap{
     position:relative; width:44px; height:44px; flex-shrink:0;
     display:flex; align-items:center; justify-content:center;
   }
   .avatar-wrap .avatar{ position:relative; z-index:2; }
-  /* Telegram uslubidagi "sonar" to'lqin halqalari — tashqariga qarab kengayib, xiralashib boradi.
-     Ikkita halqa har xil kechikish bilan ishga tushadi — shuning uchun "1ta doira" emas,
-     uzluksiz, bir-birini quvib boruvchi to'lqin hissi paydo bo'ladi. */
-  .avatar-ripple{
-    position:absolute; inset:0; border-radius:50%;
-    border:1.5px solid rgba(45, 212, 138, 0.65);
-    opacity:0; pointer-events:none; z-index:1;
-    animation: avatarPulseRing 1.9s cubic-bezier(.22,.68,.32,1) infinite;
-    animation-play-state: paused;
-  }
-  .avatar-ripple.r2{ animation-delay: .65s; border-color: rgba(45, 212, 138, 0.4); }
-  .avatar-wrap.ring-active .avatar-ripple{ animation-play-state: running; }
-  @keyframes avatarPulseRing{
-    0%{ transform:scale(1); opacity:.6; }
-    65%{ opacity:.14; }
-    100%{ transform:scale(2.05); opacity:0; }
-  }
   .avatar{
     width:44px; height:44px; border-radius:50%; flex-shrink:0;
     display:flex; align-items:center; justify-content:center;
     font-family: var(--font); font-weight:600; font-size:16px; color:#fff;
     background-size:cover; background-position:center;
     box-shadow: 0 0 0 0 transparent;
-    transition: box-shadow .18s ease-out, transform .1s ease-out, filter .15s;
+    transition: box-shadow .18s ease-out, filter .15s;
     will-change: transform;
     cursor:pointer;
   }
   .avatar:active{ filter:brightness(0.85); }
-  .avatar.speaking-ring{
-    box-shadow: 0 0 0 2.5px #2dd48a, 0 0 12px rgba(45, 212, 138, 0.35);
-  }
   .pinfo{ flex:1; min-width:0; }
   .pname{
     font-family: var(--font); font-size:15px; font-weight:600;
     color:#eef1f6; letter-spacing:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   }
   .pname.me-label::after{ content:' (Siz)'; color:#8b93a7; font-weight:400; font-size:13px; }
-  .pstate{ font-family: var(--font); font-size:12.5px; margin-top:2px; letter-spacing:0; font-weight:500; }
+  .puser{
+    font-family: var(--font); font-size:12.5px; margin-top:2px; letter-spacing:0; font-weight:500;
+    color:#8b93a7; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .pright{ flex-shrink:0; display:flex; align-items:center; margin-right:2px; }
+  .pstate{
+    font-family: var(--font); font-size:12px; letter-spacing:0; font-weight:600;
+    white-space:nowrap; display:flex; align-items:center; gap:5px;
+  }
+  .pstate::before{ content:''; width:6px; height:6px; border-radius:50%; background:currentColor; flex-shrink:0; }
   .pstate.listening{ color:#5eb0f0; }
   .pstate.speaking{ color:#2dd48a; }
+  .pstate.speaking::before{ animation: pstateDotPulse 1.1s ease-in-out infinite; }
   .pstate.invited{ color:#7a8499; }
+  @keyframes pstateDotPulse{
+    0%, 100%{ opacity:1; transform:scale(1); }
+    50%{ opacity:.45; transform:scale(1.3); }
+  }
   .picon{ flex-shrink:0; opacity:0.9; width:28px; height:28px;
     display:flex; align-items:center; justify-content:center; }
   .picon svg{ display:block; width:20px; height:20px; }
@@ -603,7 +596,7 @@
       </svg>
       <div>
         <h1 id="headTitle">OVOZLI SUHBAT</h1>
-        <div class="tag" id="headTag" title="Bosing — nusxalash">GURUH REJIMI — XOHLAGAN ODAM QO'SHILADI</div>
+        <div class="tag" id="headTag" title="Bosing — nusxalash">Ochiq guruh — istalgan kishi qo'shilaveradi</div>
       </div>
     </div>
     <div class="head-right">
@@ -627,7 +620,7 @@
     </div>
 
     <div class="tab-panel active" id="panel-join">
-      <label for="roomJoin">XONA KODI</label>
+      <label for="roomJoin">XONA RAQAMI</label>
       <div class="code-row">
         <input id="roomJoin" minlength="4" maxlength="8" placeholder="Xona raqamini kiriting" />
       </div>
@@ -637,7 +630,7 @@
           <input id="passwordJoin" type="password" maxlength="32" placeholder="PAROLNI KIRIT" />
         </div>
       </div>
-      <div class="status" id="statusJoin">Ismingiz va xona kodini kiriting</div>
+      <div class="status" id="statusJoin"></div>
       <button class="btn-main" id="joinBtn" disabled>QO'SHILISH</button>
     </div>
 
@@ -650,7 +643,7 @@
       <div class="vis-row">
         <button type="button" class="vis-btn active" id="visPublic" data-vis="public">
           <span class="vis-label"><svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>PUBLIC</span>
-          <span class="vsub">kod ro'yxatda ko'rinadi</span>
+          <span class="vsub">raqam ro'yxatda ko'rinadi</span>
         </button>
         <button type="button" class="vis-btn" id="visPrivate" data-vis="private">
           <span class="vis-label"><svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>PRIVATE</span>
@@ -659,14 +652,14 @@
       </div>
 
       <button type="button" class="adv-toggle" id="createAdvToggle" aria-expanded="false">
-        <span>Qo'shimcha sozlamalar <span class="adv-hint">(kod, parol, odam soni)</span></span>
+        <span>Qo'shimcha sozlamalar <span class="adv-hint">(raqam, parol, odam soni)</span></span>
         <svg class="adv-chevron" id="createAdvChevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       <div class="adv-panel" id="createAdvPanel">
-        <label for="roomCreate">XONA KODI</label>
+        <label for="roomCreate">XONA RAQAMI</label>
         <div class="code-row code-row-with-btn">
           <input id="roomCreate" minlength="4" maxlength="8" placeholder="4-8 BELGI, MASALAN 1234" />
-          <button type="button" class="regen-code-btn" id="regenCodeBtn" title="Boshqa kod yaratish" aria-label="Boshqa kod yaratish"><svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></button>
+          <button type="button" class="regen-code-btn" id="regenCodeBtn" title="Boshqa raqam yaratish" aria-label="Boshqa raqam yaratish"><svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></button>
         </div>
         <label for="passwordCreate">PAROL (ixtiyoriy)</label>
         <div class="code-row">
@@ -688,7 +681,7 @@
 
     <div class="tab-panel" id="panel-rooms">
       <div class="rooms-search-wrap">
-        <input id="roomSearch" type="search" maxlength="40" placeholder="Xona nomi yoki kod..." autocomplete="off" />
+        <input id="roomSearch" type="search" maxlength="40" placeholder="Xona nomi yoki raqami..." autocomplete="off" />
       </div>
       <div class="rooms-bigtabs">
         <button class="rooms-bigtab active" data-rbig="mine">Menikilar</button>
@@ -1187,6 +1180,7 @@ let isRoomHost = false;
 let forceMuted = false; // host meni majburan o'chirdimi
 const peers = {};
 const peerNames = {};
+const peerUsernames = {};
 const peerMuted = {};      // pid -> o'sha peer o'zini mute qilganmi
 const peerForceMuted = {}; // pid -> hostmi kimdir uni majburan o'chirganmi
 const pairUnsubs = {};
@@ -2115,7 +2109,7 @@ function makeRoomCard(code, data, count, isMine){
     delBtn.addEventListener('click', async (e) => {
       e.stopPropagation();
       closeAllRoomMenus();
-      if (!confirm(title + " xonasini butunlay o'chirasizmi? Kod bo'shaydi.")) return;
+      if (!confirm(title + " xonasini butunlay o'chirasizmi? Raqam bo'shaydi.")) return;
       delBtn.textContent = "O'chirilmoqda...";
       try{
         await deleteRoomAndRefresh(code);
@@ -2287,20 +2281,11 @@ function smoothTo(current, target, attack, release){
 function applySpeakingRing(el, fastLevel, slowLevel){
   if (!el) return;
   if (fastLevel < 0.015 && slowLevel < 0.015){
-    el.style.boxShadow = '';
     el.style.transform = 'scale(1)';
     return;
   }
-  const innerSpread = (2 + fastLevel * 9).toFixed(1);
-  const innerAlpha = (0.28 + fastLevel * 0.32).toFixed(2);
-  const outerBlur = (10 + slowLevel * 26).toFixed(1);
-  const outerSpread = (4 + slowLevel * 16).toFixed(1);
-  const outerAlpha = (0.10 + slowLevel * 0.20).toFixed(2);
-  el.style.boxShadow =
-    '0 0 0 ' + innerSpread + 'px rgba(45, 212, 138, ' + innerAlpha + '), ' +
-    '0 0 ' + outerBlur + 'px ' + outerSpread + 'px rgba(45, 212, 138, ' + outerAlpha + ')';
-  // Rasmning o'zi endi ovoz balandligiga qarab yaqqol kattalashadi/kichraydi —
-  // tez qatlam (fastLevel) asosiy "urg'u"ni beradi, sekin qatlam (slowLevel) yumshoq bazani beradi
+  // Chetdan chiquvchi halqa/glow endi yo'q — faqat rasmning o'zi ovoz balandligiga qarab kattalashadi/kichrayadi.
+  // Tez qatlam (fastLevel) asosiy "urg'u"ni beradi, sekin qatlam (slowLevel) yumshoq bazani beradi.
   const scale = 1 + fastLevel * 0.16 + slowLevel * 0.05;
   el.style.transform = 'scale(' + scale.toFixed(3) + ')';
 }
@@ -2389,8 +2374,7 @@ function stopLogoReact(){
     muteBtn.style.transform = 'scale(1)';
     muteBtn.style.boxShadow = '';
   }
-  document.querySelectorAll('.avatar').forEach(el => { el.style.transform = 'scale(1)'; el.style.boxShadow = ''; });
-  document.querySelectorAll('.avatar-wrap').forEach(el => el.classList.remove('ring-active'));
+  document.querySelectorAll('.avatar').forEach(el => { el.style.transform = 'scale(1)'; });
   const micWrapEl = document.getElementById('micBtnWrap');
   if (micWrapEl) micWrapEl.classList.remove('ring-active');
   Object.keys(peerLevelSmoothFast).forEach(k => delete peerLevelSmoothFast[k]);
@@ -2455,15 +2439,8 @@ function startMicBackgroundRetry(){
 }
 
 window.addEventListener('DOMContentLoaded', () => {
-  requestMicUpfront(true).then(ok => {
-    if (!ok) startMicBackgroundRetry();
-  });
-  // Tab qayta faol bo'lganda ham qayta urinish
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible' && !micReady) {
-      requestMicUpfront(true).then(ok => { if (!ok) startMicBackgroundRetry(); });
-    }
-  });
+  // Mikrofon ruxsati endi sahifa ochilishi bilan emas — faqat xonaga
+  // qo'shilish/yaratish paytida (ensureMic orqali) so'raladi.
   refreshRoomLists();
   refreshAllBtnStates();
 });
@@ -2487,6 +2464,15 @@ function displayName(pid){
 // har doim haqiqiy ISMni saqlaydi — shuning uchun harf hisoblashda shuni ustuvor qilamiz.
 function myAvatarLetterName(){
   return (currentProfile && currentProfile.name && currentProfile.name.trim()) || myName || '';
+}
+// Har doim mavjud bo'ladigan username: akkaunt bo'lsa currentProfile.username, aks holda uid'dan avto-generatsiya
+function myUsernameDisplay(){
+  if (currentProfile && currentProfile.username) return currentProfile.username;
+  const uid = auth.currentUser && auth.currentUser.uid;
+  return uid ? autoUsername(uid) : myId.slice(0, 6);
+}
+function peerUsernameDisplay(pid){
+  return peerUsernames[pid] || pid.slice(0, 6);
 }
 
 const speakingState = {};
@@ -2532,13 +2518,14 @@ function renderParticipants(){
   const meSpeaking = !meEffectivelyMuted && speakingState[myId];
   const meStateLabel = forceMuted ? 'host o\'chirdi' : (muted ? 'mikrofon o\'chiq' : (meSpeaking ? 'gapiryapti' : 'tinglayapti'));
   meRow.innerHTML = `
-    <div class="avatar-wrap ${meSpeaking ? 'ring-active' : ''}">
-      <span class="avatar-ripple r1"></span>
-      <span class="avatar-ripple r2"></span>
-      <div id="avatar-me" data-pid="me" class="avatar ${meSpeaking ? 'speaking-ring' : ''}" style="${avatarStyleAttr(myAvatarUrl, colorFor(myId))}">${avatarInnerHtml(myAvatarUrl, initialFor(myAvatarLetterName()))}</div>
+    <div class="avatar-wrap">
+      <div id="avatar-me" data-pid="me" class="avatar" style="${avatarStyleAttr(myAvatarUrl, colorFor(myId))}">${avatarInnerHtml(myAvatarUrl, initialFor(myAvatarLetterName()))}</div>
     </div>
     <div class="pinfo">
       <div class="pname me-label">${escapeHtml(myName || 'Siz')}${isRoomHost ? ' · host' : ''}</div>
+      <div class="puser">@${escapeHtml(myUsernameDisplay())}</div>
+    </div>
+    <div class="pright">
       <div class="pstate ${meEffectivelyMuted ? 'invited' : (meSpeaking ? 'speaking' : 'listening')}">${meStateLabel}</div>
     </div>
     <div class="picon ${meEffectivelyMuted ? 'muted-icon' : 'ok-icon'}">${meEffectivelyMuted ? micOffSvg() : micSvg()}</div>
@@ -2563,10 +2550,8 @@ function renderParticipants(){
       </button>` : '';
     const pAvatarUrl = peerAvatars[pid] || null;
     row.innerHTML = `
-      <div class="avatar-wrap ${speaking ? 'ring-active' : ''}">
-        <span class="avatar-ripple r1"></span>
-        <span class="avatar-ripple r2"></span>
-        <div id="avatar-${pid}" data-pid="${pid}" class="avatar ${speaking ? 'speaking-ring' : ''}" style="${avatarStyleAttr(pAvatarUrl, colorFor(pid))}">${avatarInnerHtml(pAvatarUrl, initialFor(displayName(pid)))}</div>
+      <div class="avatar-wrap">
+        <div id="avatar-${pid}" data-pid="${pid}" class="avatar" style="${avatarStyleAttr(pAvatarUrl, colorFor(pid))}">${avatarInnerHtml(pAvatarUrl, initialFor(displayName(pid)))}</div>
       </div>
       <div class="pinfo">
         <div class="pname">${escapeHtml(displayName(pid))}</div>
@@ -2747,6 +2732,7 @@ function teardownPeer(peerId){
     delete peers[peerId];
   }
   delete peerNames[peerId];
+  delete peerUsernames[peerId];
   delete iceRestartAttempts[peerId];
   stopWatchSpeaking(peerId);
   if (pairUnsubs[peerId]){ pairUnsubs[peerId](); delete pairUnsubs[peerId]; }
@@ -2785,7 +2771,7 @@ function enterCallScreen(){
   const headLinkBtn = document.getElementById('headRoomLinkBtn');
   if (headTitleEl) headTitleEl.textContent = currentRoomName || (roomRef ? roomRef.id : 'OVOZLI SUHBAT');
   if (headTagEl && roomRef){
-    headTagEl.textContent = 'XONA KODI: ' + roomRef.id;
+    headTagEl.textContent = 'XONA RAQAMI: ' + roomRef.id;
     headTagEl.classList.add('clickable');
   }
   if (headLinkBtn) headLinkBtn.style.display = '';
@@ -2827,6 +2813,7 @@ async function attachPresence(room, peersCol){
       const data = change.doc.data() || {};
       if (change.type === 'added'){
         peerNames[pid] = data.name || pid.slice(0,4);
+        peerUsernames[pid] = data.username || pid.slice(0,6);
         peerAvatars[pid] = data.avatar || null;
         peerMuted[pid] = !!data.muted;
         peerForceMuted[pid] = !!data.forceMuted;
@@ -2834,6 +2821,7 @@ async function attachPresence(room, peersCol){
       }
       if (change.type === 'modified'){
         peerNames[pid] = data.name || pid.slice(0,4);
+        peerUsernames[pid] = data.username || pid.slice(0,6);
         peerAvatars[pid] = data.avatar || null;
         peerMuted[pid] = !!data.muted;
         peerForceMuted[pid] = !!data.forceMuted;
@@ -2911,7 +2899,7 @@ joinBtn.addEventListener('click', async () => {
   const password = passwordJoinInput.value;
 
   if (!enteredName){ setStatusJoin('Ism kiritilmadi.', true); return; }
-  if (!room || room.length < 4 || room.length > 8){ setStatusJoin('Xona kodi 4-8 belgi bo\'lsin.', true); return; }
+  if (!room || room.length < 4 || room.length > 8){ setStatusJoin('Xona raqami 4-8 belgi bo\'lsin.', true); return; }
 
   setBtnLoading(joinBtn, true, 'QO\'SHILYAPTI...', 'QO\'SHILISH');
   roomRef = db.collection(ROOM_COLLECTION).doc(room);
@@ -2984,6 +2972,7 @@ joinBtn.addEventListener('click', async () => {
           return;
         }
         peerNames[doc.id] = (d.name || doc.id.slice(0,4));
+        peerUsernames[doc.id] = (d.username || doc.id.slice(0,6));
         peerAvatars[doc.id] = d.avatar || null;
         peerMuted[doc.id] = !!d.muted;
         peerForceMuted[doc.id] = !!d.forceMuted;
@@ -3003,6 +2992,7 @@ joinBtn.addEventListener('click', async () => {
       joinedAt: Date.now(),
       lastSeen: Date.now(),
       name: enteredName,
+      username: myUsernameDisplay(),
       avatar: currentAvatarUrl() || null,
       muted: false,
       forceMuted: false,
@@ -3042,7 +3032,7 @@ createBtn.addEventListener('click', async () => {
 
   const roomName = roomNameCreateInput.value.trim();
   if (!enteredName){ setStatusCreate('Ism kiritilmadi.', true); return; }
-  if (!room || room.length < 4 || room.length > 8){ setStatusCreate('Xona kodi 4-8 belgi bo\'lsin.', true); return; }
+  if (!room || room.length < 4 || room.length > 8){ setStatusCreate('Xona raqami 4-8 belgi bo\'lsin.', true); return; }
   if (!roomName){ setStatusCreate('Xona nomini yozing!', true); return; }
   if (password && (password.length < 4 || password.length > 9)){
     setStatusCreate('Parol 4-9 belgi bo\'lsin (harf va raqam bo\'lishi mumkin).', true);
@@ -3070,7 +3060,7 @@ createBtn.addEventListener('click', async () => {
   }
 
   if (roomSnap.exists){
-    setStatusCreate('Bu kod allaqachon band. Boshqa kod tanlang yoki "Qo\'shilish"dan foydalaning.', true);
+    setStatusCreate('Bu raqam allaqachon band. Boshqa raqam tanlang yoki "Qo\'shilish"dan foydalaning.', true);
     setBtnLoading(createBtn, false, '', 'XONA YARATISH');
     return;
   }
@@ -3115,6 +3105,7 @@ createBtn.addEventListener('click', async () => {
       joinedAt: Date.now(),
       lastSeen: Date.now(),
       name: myName,
+      username: myUsernameDisplay(),
       avatar: currentAvatarUrl() || null,
       muted: false,
       forceMuted: false,
@@ -3157,7 +3148,7 @@ async function copyTextWithToast(text, successMsg){
 }
 document.getElementById('headTag')?.addEventListener('click', () => {
   if (!roomRef || !roomRef.id) return; // faqat xonada bo'lganda faol (clickable klassi bilan mos)
-  copyTextWithToast(roomRef.id, 'Xona kodi nusxalandi: ' + roomRef.id);
+  copyTextWithToast(roomRef.id, 'Xona raqami nusxalandi: ' + roomRef.id);
 });
 document.getElementById('headRoomLinkBtn')?.addEventListener('click', (e) => {
   if (!roomRef || !roomRef.id) return;
@@ -3182,7 +3173,7 @@ copyCodeBtn.addEventListener('click', async () => {
     copyIcon.innerHTML = CHECK_ICON_INNER;
     copyTxt.textContent = 'NUSXALANDI';
     copyCodeBtn.classList.add('copied');
-    showToast('Kod nusxalandi: ' + code);
+    showToast('Raqam nusxalandi: ' + code);
     setTimeout(() => {
       copyIcon.innerHTML = COPY_ICON_INNER;
       copyTxt.textContent = 'NUSXALASH';
@@ -3227,7 +3218,7 @@ async function leave(){
   const headLinkBtn = document.getElementById('headRoomLinkBtn');
   if (headTitleEl) headTitleEl.textContent = 'OVOZLI SUHBAT';
   if (headTagEl){
-    headTagEl.textContent = "GURUH REJIMI — XOHLAGAN ODAM QO'SHILADI";
+    headTagEl.textContent = "Ochiq guruh — istalgan kishi qo'shilaveradi";
     headTagEl.classList.remove('clickable');
   }
   if (headLinkBtn) headLinkBtn.style.display = 'none';
@@ -3242,7 +3233,7 @@ async function leave(){
   createdCodeBox.classList.remove('show');
   if (createAdvPanel){ createAdvPanel.classList.remove('open'); createAdvToggle.setAttribute('aria-expanded','false'); }
   ensureCreateDefaults();
-  setStatusJoin('Ismingiz va xona kodini kiriting');
+  setStatusJoin('');
   setStatusCreate('Xona nomini yozing va XONA YARATISH bosing');
   refreshAllBtnStates();
   refreshRoomLists();
