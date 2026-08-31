@@ -1,0 +1,295 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+    function isValidString(val, minLen, maxLen) {
+      return val is string
+        && val.size() >= minLen
+        && val.size() <= maxLen;
+    }
+    function isValidRoomCode(code) {
+      return code is string
+        && code.size() >= 4
+        && code.size() <= 8
+        && code.matches('^[A-Za-z0-9]+$');
+    }
+    function isValidUsername(u) {
+      return u is string
+        && u.size() >= 2
+        && u.size() <= 20
+        && u.matches('^[a-z0-9_]+$');
+    }
+    function onlyAllowedKeys(allowed) {
+      return request.resource.data.keys().hasOnly(allowed);
+    }
+    function unchanged(field) {
+      return !(field in request.resource.data)
+        || request.resource.data[field] == resource.data[field];
+    }
+    function isValidAvatar(val) {
+      return val == null
+        || (val is string && val.size() <= 1200000);
+    }
+    function isValidPasswordHash(val) {
+      return val is string && val.size() == 64 && val.matches('^[a-f0-9]+$');
+    }
+    function isValidLastSeen(val) {
+      return val is number
+        && val <= request.time.toMillis() + 60000
+        && val >= request.time.toMillis() - 300000;
+    }
+    function roomData(roomId) {
+      return get(/databases/$(database)/documents/aloqa-xonasi-rooms/$(roomId)).data;
+    }
+    function roomExists(roomId) {
+      return exists(/databases/$(database)/documents/aloqa-xonasi-rooms/$(roomId));
+    }
+    function isRoomOwnerDoc(data) {
+      return isSignedIn()
+        && data.keys().hasAny(['createdByUid'])
+        && data.createdByUid == request.auth.uid;
+    }
+    function isRoomOwner(roomId) {
+      return roomExists(roomId) && isRoomOwnerDoc(roomData(roomId));
+    }
+    function isExpiredFromData(data) {
+      return (
+        ('lastActivity' in data
+          && data.lastActivity is timestamp
+          && data.lastActivity < request.time - duration.value(14, 'd'))
+        ||
+        (!('lastActivity' in data)
+          && 'lastJoinedAt' in data
+          && data.lastJoinedAt is number
+          && data.lastJoinedAt < request.time.toMillis() - 1209600000)
+        ||
+        (!('lastActivity' in data)
+          && !('lastJoinedAt' in data)
+          && 'createdAt' in data
+          && data.createdAt is number
+          && data.createdAt < request.time.toMillis() - 1209600000)
+      );
+    }
+    function isExpiredRoom(roomId) {
+      return roomExists(roomId) && isExpiredFromData(roomData(roomId));
+    }
+    function isServerTimestamp(val) {
+      return val is timestamp && val == request.time;
+    }
+    function isOwnPeer() {
+      return isSignedIn()
+        && 'uid' in resource.data
+        && resource.data.uid == request.auth.uid;
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId)
+        && onlyAllowedKeys(['name', 'username', 'avatar', 'provider', 'createdAt'])
+        && isValidString(request.resource.data.name, 1, 40)
+        && isValidUsername(request.resource.data.username)
+        && request.resource.data.provider is string
+        && request.resource.data.provider in ['anonymous', 'password']
+        && request.resource.data.createdAt is number
+        && (!('avatar' in request.resource.data) || isValidAvatar(request.resource.data.avatar));
+      allow update: if isOwner(userId)
+        && onlyAllowedKeys(['name', 'username', 'avatar', 'provider', 'createdAt'])
+        && unchanged('createdAt')
+        && (
+          unchanged('provider')
+          || (resource.data.provider == 'anonymous'
+              && request.resource.data.provider == 'password')
+        )
+        && isValidString(request.resource.data.name, 1, 40)
+        && isValidUsername(request.resource.data.username)
+        && (!('avatar' in request.resource.data) || isValidAvatar(request.resource.data.avatar));
+      allow delete: if isOwner(userId);
+    }
+
+    match /usernames/{username} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn()
+        && isValidUsername(username)
+        && onlyAllowedKeys(['uid'])
+        && request.resource.data.uid == request.auth.uid;
+      allow delete: if isSignedIn() && resource.data.uid == request.auth.uid;
+      allow update: if false;
+    }
+
+    match /aloqa-xonasi-rooms/{roomId} {
+      allow get: if isSignedIn() && isValidRoomCode(roomId);
+      allow list: if isSignedIn();
+
+      allow create: if isSignedIn()
+        && isValidRoomCode(roomId)
+        && onlyAllowedKeys([
+             'name', 'createdAt', 'visibility', 'createdBy',
+             'createdByUid', 'maxParticipants', 'lastJoinedAt',
+             'lastActivity', 'peakCount', 'passwordHash'
+           ])
+        && isValidString(request.resource.data.name, 1, 60)
+        && request.resource.data.createdAt is number
+        && request.resource.data.visibility in ['public', 'private']
+        && request.resource.data.createdBy is string
+        && request.resource.data.createdBy.size() >= 4
+        && request.resource.data.createdBy.size() <= 16
+        && (request.resource.data.createdByUid == null
+            || request.resource.data.createdByUid == request.auth.uid)
+        && request.resource.data.maxParticipants is number
+        && request.resource.data.maxParticipants >= 2
+        && request.resource.data.maxParticipants <= 30
+        && request.resource.data.lastJoinedAt is number
+        && request.resource.data.peakCount is number
+        && request.resource.data.peakCount >= 1
+        && request.resource.data.peakCount <= 30
+        && (!('lastActivity' in request.resource.data)
+            || isServerTimestamp(request.resource.data.lastActivity))
+        && (!('passwordHash' in request.resource.data)
+            || isValidPasswordHash(request.resource.data.passwordHash));
+
+      allow update: if isSignedIn()
+        && isValidRoomCode(roomId)
+        && (
+          (
+            isRoomOwnerDoc(resource.data)
+            && onlyAllowedKeys([
+                 'name', 'createdAt', 'visibility', 'createdBy',
+                 'createdByUid', 'maxParticipants', 'lastJoinedAt',
+                 'lastActivity', 'peakCount', 'passwordHash'
+               ])
+            && unchanged('createdAt')
+            && unchanged('createdBy')
+            && unchanged('createdByUid')
+            && isValidString(request.resource.data.name, 1, 60)
+            && request.resource.data.visibility in ['public', 'private']
+            && request.resource.data.maxParticipants is number
+            && request.resource.data.maxParticipants >= 2
+            && request.resource.data.maxParticipants <= 30
+            && (!('passwordHash' in request.resource.data)
+                || request.resource.data.passwordHash == null
+                || isValidPasswordHash(request.resource.data.passwordHash))
+            && (!('lastActivity' in request.resource.data)
+                || request.resource.data.lastActivity is timestamp)
+          )
+          ||
+          (
+            request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['lastJoinedAt', 'peakCount', 'lastActivity'])
+            && request.resource.data.lastJoinedAt is number
+            && request.resource.data.peakCount is number
+            && request.resource.data.peakCount >= 1
+            && request.resource.data.peakCount <= 30
+            && (!('peakCount' in resource.data)
+                || request.resource.data.peakCount >= resource.data.peakCount)
+            && (!('lastActivity' in request.resource.data)
+                || isServerTimestamp(request.resource.data.lastActivity))
+          )
+        );
+
+      allow delete: if isSignedIn()
+        && isValidRoomCode(roomId)
+        && (isRoomOwnerDoc(resource.data) || isExpiredFromData(resource.data));
+
+      match /peers/{peerId} {
+        allow read: if isSignedIn();
+
+        allow create: if isSignedIn()
+          && peerId is string
+          && peerId.size() >= 4
+          && peerId.size() <= 16
+          && onlyAllowedKeys(['joinedAt', 'lastSeen', 'name', 'avatar', 'muted', 'forceMuted', 'uid'])
+          && request.resource.data.joinedAt is number
+          && isValidLastSeen(request.resource.data.lastSeen)
+          && isValidString(request.resource.data.name, 1, 40)
+          && (!('avatar' in request.resource.data) || isValidAvatar(request.resource.data.avatar))
+          && request.resource.data.muted is bool
+          && request.resource.data.forceMuted is bool
+          && request.resource.data.forceMuted == false
+          && request.resource.data.uid == request.auth.uid;
+
+        allow update: if isSignedIn()
+          && onlyAllowedKeys(['joinedAt', 'lastSeen', 'name', 'avatar', 'muted', 'forceMuted', 'uid'])
+          && unchanged('joinedAt')
+          && unchanged('uid')
+          && (
+            (
+              isOwnPeer()
+              && request.resource.data.diff(resource.data).affectedKeys()
+                   .hasOnly(['lastSeen'])
+              && isValidLastSeen(request.resource.data.lastSeen)
+            )
+            ||
+            (
+              isOwnPeer()
+              && request.resource.data.diff(resource.data).affectedKeys()
+                   .hasOnly(['muted', 'name', 'avatar', 'lastSeen'])
+              && isValidString(request.resource.data.name, 1, 40)
+              && (!('avatar' in request.resource.data) || isValidAvatar(request.resource.data.avatar))
+              && request.resource.data.muted is bool
+              && (!('lastSeen' in request.resource.data) || isValidLastSeen(request.resource.data.lastSeen))
+            )
+            ||
+            (
+              isRoomOwner(roomId)
+              && request.resource.data.diff(resource.data).affectedKeys()
+                   .hasOnly(['forceMuted'])
+              && request.resource.data.forceMuted is bool
+            )
+            ||
+            (
+              isRoomOwner(roomId)
+              && request.resource.data.diff(resource.data).affectedKeys()
+                   .hasOnly(['muted', 'forceMuted'])
+              && request.resource.data.muted is bool
+              && request.resource.data.forceMuted is bool
+            )
+          );
+
+        allow delete: if isSignedIn()
+          && (
+            isOwnPeer()
+            || isRoomOwner(roomId)
+            || isExpiredRoom(roomId)
+            || (
+              'lastSeen' in resource.data
+              && resource.data.lastSeen is number
+              && resource.data.lastSeen < request.time.toMillis() - 20000
+            )
+            || (
+              !('uid' in resource.data)
+              && (isRoomOwner(roomId) || isExpiredRoom(roomId))
+            )
+          );
+      }
+
+      match /signals/{signalId} {
+        allow read: if isSignedIn();
+        allow create, update: if isSignedIn()
+          && onlyAllowedKeys(['offer', 'answer'])
+          && (
+            !('offer' in request.resource.data)
+            || request.resource.data.offer == null
+            || (request.resource.data.offer is string
+                && request.resource.data.offer.size() <= 20000)
+          )
+          && (
+            !('answer' in request.resource.data)
+            || request.resource.data.answer == null
+            || (request.resource.data.answer is string
+                && request.resource.data.answer.size() <= 20000)
+          );
+        allow delete: if isSignedIn();
+      }
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
