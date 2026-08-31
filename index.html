@@ -111,6 +111,30 @@
   .vis-btn .vsub{ font-size:11px; letter-spacing:0; opacity:.85; font-weight:400; }
   .vis-btn.active{ border-color:var(--amber); color:var(--amber); background:var(--amber-dim); }
 
+  .adv-toggle{
+    width:100%; display:flex; align-items:center; justify-content:space-between; gap:8px;
+    background:transparent; border:1px dashed var(--line); color:var(--text-dim);
+    font-family:var(--font); font-size:12px; letter-spacing:0; font-weight:600;
+    padding:10px 12px; border-radius:var(--radius-sm); cursor:pointer; margin-bottom:0; transition:all .15s;
+  }
+  .adv-toggle:hover{ border-color:var(--amber); color:var(--amber); }
+  .adv-toggle .adv-hint{ font-weight:400; opacity:.75; }
+  .adv-chevron{ width:16px; height:16px; flex-shrink:0; transition:transform .2s; }
+  .adv-toggle[aria-expanded="true"] .adv-chevron{ transform:rotate(180deg); }
+  .adv-panel{
+    max-height:0; overflow:hidden; opacity:0;
+    transition:max-height .25s ease, opacity .2s ease, margin-top .25s ease;
+  }
+  .adv-panel.open{ max-height:400px; opacity:1; margin-top:14px; }
+  .code-row-with-btn{ display:flex; gap:8px; align-items:stretch; }
+  .code-row-with-btn input{ flex:1; }
+  .regen-code-btn{
+    flex-shrink:0; width:44px; background:var(--input-bg); border:1px solid var(--line); color:var(--text-dim);
+    border-radius:var(--radius-sm); cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all .15s;
+  }
+  .regen-code-btn:hover{ border-color:var(--amber); color:var(--amber); }
+  .regen-code-btn:active{ transform:rotate(90deg); }
+
   .rooms-search-wrap{
     position:sticky; top:0; z-index:5; background:var(--bg2);
     padding-bottom:10px; margin-bottom:4px;
@@ -167,6 +191,7 @@
     color:var(--text-dim); display:flex; align-items:center; justify-content:center; cursor:pointer;
     transition:transform .15s, box-shadow .15s, border-color .15s, color .15s, background .15s;
     padding:0; overflow:hidden; position:relative; flex-shrink:0;
+    -webkit-touch-callout:none; -webkit-user-select:none; user-select:none; touch-action:manipulation;
   }
   .profile-icon-btn:hover{
     border-color:var(--amber); color:var(--amber);
@@ -206,7 +231,7 @@
   .form-input:focus{ border-color:var(--amber); box-shadow:0 0 0 3px var(--amber-dim); }
   .form-input::placeholder{ color:var(--text-dim); }
 
-  .profile-avatar-upload{ position:relative; cursor:pointer; flex-shrink:0; }
+  .profile-avatar-upload{ position:relative; cursor:pointer; flex-shrink:0; -webkit-touch-callout:none; -webkit-user-select:none; user-select:none; touch-action:manipulation; }
   .profile-avatar-upload .profile-avatar{ background-size:cover; background-position:center; }
   .avatar-edit-badge{
     position:absolute; bottom:-3px; right:-3px; width:18px; height:18px; border-radius:50%;
@@ -332,7 +357,7 @@
     font-family: var(--font); font-weight:600; font-size:16px; color:#fff;
     background-size:cover; background-position:center;
     box-shadow: 0 0 0 0 transparent;
-    transition: box-shadow .15s, filter .15s;
+    transition: box-shadow .18s ease-out, transform .1s ease-out, filter .15s;
     will-change: transform;
     cursor:pointer;
   }
@@ -537,21 +562,9 @@
     </div>
 
     <div class="tab-panel" id="panel-create">
-      <label for="roomCreate">XONA KODI</label>
-      <div class="code-row">
-        <input id="roomCreate" minlength="4" maxlength="8" placeholder="4-8 BELGI, MASALAN 1234" />
-      </div>
       <label for="roomNameCreate">XONA NOMI</label>
       <div class="code-row">
         <input id="roomNameCreate" maxlength="32" placeholder="MASALAN DOSTLAR XONASI" />
-      </div>
-      <label for="passwordCreate">PAROL (ixtiyoriy)</label>
-      <div class="code-row">
-        <input id="passwordCreate" type="password" minlength="4" maxlength="9" placeholder="4-9 BELGI, IXTIYORIY" />
-      </div>
-      <label for="maxParticipantsCreate">MAKSIMAL ODAM SONI (2-30)</label>
-      <div class="code-row">
-        <input id="maxParticipantsCreate" type="number" min="2" max="30" value="10" placeholder="MASALAN 10" />
       </div>
       <label>KO'RINISH</label>
       <div class="vis-row">
@@ -564,11 +577,32 @@
           <span class="vsub">faqat kodni bilgan kiradi</span>
         </button>
       </div>
+
+      <button type="button" class="adv-toggle" id="createAdvToggle" aria-expanded="false">
+        <span>Qo'shimcha sozlamalar <span class="adv-hint">(kod, parol, odam soni)</span></span>
+        <svg class="adv-chevron" id="createAdvChevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="adv-panel" id="createAdvPanel">
+        <label for="roomCreate">XONA KODI</label>
+        <div class="code-row code-row-with-btn">
+          <input id="roomCreate" minlength="4" maxlength="8" placeholder="4-8 BELGI, MASALAN 1234" />
+          <button type="button" class="regen-code-btn" id="regenCodeBtn" title="Boshqa kod yaratish" aria-label="Boshqa kod yaratish"><svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></button>
+        </div>
+        <label for="passwordCreate">PAROL (ixtiyoriy)</label>
+        <div class="code-row">
+          <input id="passwordCreate" type="password" minlength="4" maxlength="9" placeholder="4-9 BELGI, IXTIYORIY" />
+        </div>
+        <label for="maxParticipantsCreate">MAKSIMAL ODAM SONI (2-30)</label>
+        <div class="code-row">
+          <input id="maxParticipantsCreate" type="number" min="2" max="30" value="10" placeholder="MASALAN 10" />
+        </div>
+      </div>
+
       <div class="created-code-box" id="createdCodeBox">
         <div class="cc-code" id="createdCodeText">----</div>
         <button class="copy-btn" id="copyCodeBtn"><svg class="btn-icon" id="copyIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span id="copyTxt">NUSXALASH</span></button>
       </div>
-      <div class="status" id="statusCreate">Ma'lumotlarni to'ldiring va XONA YARATISH bosing</div>
+      <div class="status" id="statusCreate">Xona nomini yozing va XONA YARATISH bosing</div>
       <button class="btn-main" id="createBtn" disabled>XONA YARATISH</button>
     </div>
 
@@ -881,11 +915,48 @@ const createBtn = document.getElementById('createBtn');
 const statusCreateEl = document.getElementById('statusCreate');
 const visPublicBtn = document.getElementById('visPublic');
 const visPrivateBtn = document.getElementById('visPrivate');
+const createAdvToggle = document.getElementById('createAdvToggle');
+const createAdvPanel = document.getElementById('createAdvPanel');
+const regenCodeBtn = document.getElementById('regenCodeBtn');
 
 const createdCodeBox = document.getElementById('createdCodeBox');
 const createdCodeText = document.getElementById('createdCodeText');
 const copyCodeBtn = document.getElementById('copyCodeBtn');
 const copyIcon = document.getElementById('copyIcon');
+
+// --- Xona yaratishni soddalashtirish: kod avtomatik yaratiladi, ism uchun taklif beriladi ---
+// Foydalanuvchi xohlasa "Qo'shimcha sozlamalar"ni ochib kodni o'zi ham tanlashi mumkin — funksiya o'zgarmadi, faqat UI soddalashdi.
+const ROOM_NAME_SUGGESTIONS = ['Mening xonam', 'Do\'stlar davrasi', 'Ovozli suhbat', 'Kechki gap'];
+function generateRoomCode(){
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // chalkash harflar (0/O, 1/I) chiqarib tashlandi
+  let code = '';
+  for (let i = 0; i < 5; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
+  return code;
+}
+function pickRoomNameSuggestion(){
+  return ROOM_NAME_SUGGESTIONS[Math.floor(Math.random() * ROOM_NAME_SUGGESTIONS.length)];
+}
+function ensureCreateDefaults(){
+  if (!roomCreateInput.value.trim()) roomCreateInput.value = generateRoomCode();
+  if (!roomNameCreateInput.value.trim()) roomNameCreateInput.value = pickRoomNameSuggestion();
+  refreshCreateBtnState();
+}
+if (regenCodeBtn){
+  regenCodeBtn.addEventListener('click', () => {
+    roomCreateInput.value = generateRoomCode();
+    refreshCreateBtnState();
+    roomCreateInput.focus();
+  });
+}
+if (createAdvToggle && createAdvPanel){
+  createAdvToggle.addEventListener('click', () => {
+    const willOpen = !createAdvPanel.classList.contains('open');
+    createAdvPanel.classList.toggle('open', willOpen);
+    createAdvToggle.setAttribute('aria-expanded', String(willOpen));
+  });
+}
+ensureCreateDefaults();
+
 const copyTxt = document.getElementById('copyTxt');
 
 const publicRoomListEl = document.getElementById('publicRoomList');
@@ -1099,6 +1170,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.classList.add('active');
     document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
     if (btn.dataset.tab === 'rooms') refreshRoomLists();
+    if (btn.dataset.tab === 'create') ensureCreateDefaults();
   });
 });
 document.querySelectorAll('.subtab-btn').forEach(btn => {
@@ -1144,17 +1216,79 @@ function closeProfileScreen(){
   profileScreenEl.style.display = 'none';
   lobbyEl.style.display = 'block';
 }
-profileIconBtn.addEventListener('click', () => {
-  // Xona ichida bo'lsa profil sahifasini ochmasin — faqat rasmni zoom qilsin
-  if (joined) {
-    const url = currentAvatarUrl();
-    if (url) openAvatarLightbox(url);
-    return;
+
+// --- Umumiy "bosib turish" (long-press) gesture: mouse va touch uchun bir xil ishlaydi ---
+function bindLongPress(el, onLongPress, opts){
+  if (!el) return;
+  const duration = (opts && opts.duration) || 450;
+  const onShortPress = opts && opts.onShortPress;
+  const ignoreSelector = opts && opts.ignoreSelector;
+  const MOVE_TOLERANCE = 10;
+  let timer = null;
+  let longPressFired = false;
+  let startX = 0, startY = 0;
+
+  function shouldIgnore(e){
+    if (!ignoreSelector) return false;
+    return !!(e.target && e.target.closest && e.target.closest(ignoreSelector));
   }
-  if (isProfileScreenOpen()) {
-    closeProfileScreen();
+  function clearTimer(){
+    if (timer){ clearTimeout(timer); timer = null; }
+  }
+  el.addEventListener('pointerdown', (e) => {
+    if (shouldIgnore(e)) return;
+    longPressFired = false;
+    startX = e.clientX; startY = e.clientY;
+    clearTimer();
+    timer = setTimeout(() => {
+      longPressFired = true;
+      onLongPress(e);
+    }, duration);
+  });
+  el.addEventListener('pointermove', (e) => {
+    if (!timer) return;
+    if (Math.abs(e.clientX - startX) > MOVE_TOLERANCE || Math.abs(e.clientY - startY) > MOVE_TOLERANCE){
+      clearTimer();
+    }
+  });
+  el.addEventListener('pointerup', clearTimer);
+  el.addEventListener('pointerleave', clearTimer);
+  el.addEventListener('pointercancel', () => { clearTimer(); longPressFired = false; });
+  el.addEventListener('click', (e) => {
+    if (longPressFired){
+      // Bosib turish allaqachon ishga tushdi — qo'shimcha click harakatini bekor qilamiz
+      e.preventDefault();
+      e.stopPropagation();
+      longPressFired = false;
+      return;
+    }
+    if (shouldIgnore(e)) return;
+    if (onShortPress) onShortPress(e);
+  });
+}
+
+function zoomOwnAvatar(){
+  const url = currentAvatarUrl();
+  if (url) {
+    openAvatarLightbox(url);
   } else {
-    openProfileScreen();
+    const n = (profileNameInput.value || '').trim();
+    openAvatarLightbox({ color: colorForProfile(n || 'x'), letter: (n.charAt(0).toUpperCase() || '?') });
+  }
+}
+
+// Qisqa bosish: profilni och/yop (yoki xonada bo'lsa — zoom). Bosib turish: har doim zoom.
+bindLongPress(profileIconBtn, zoomOwnAvatar, {
+  onShortPress: () => {
+    if (joined) {
+      zoomOwnAvatar();
+      return;
+    }
+    if (isProfileScreenOpen()) {
+      closeProfileScreen();
+    } else {
+      openProfileScreen();
+    }
   }
 });
 
@@ -1521,20 +1655,25 @@ document.addEventListener('keydown', (e) => {
 function bindAvatarPreviewAndEdit(wrapEl, fileEl){
   if (!wrapEl) return;
   const badge = wrapEl.querySelector('.avatar-edit-badge');
-  const avatarEl = wrapEl.querySelector('.profile-avatar');
   if (badge) {
     badge.addEventListener('click', (e) => {
       e.stopPropagation();
       if (fileEl) fileEl.click();
     });
   }
-  wrapEl.addEventListener('click', (e) => {
-    if (badge && (e.target === badge || badge.contains(e.target))) return;
+  // Qisqa bosish: rasmni tahrirlash (fayl tanlash). Bosib turish: rasmni zoom qilish.
+  bindLongPress(wrapEl, () => {
     const url = currentAvatarUrl();
     if (url) {
       openAvatarLightbox(url);
-    } else if (fileEl) {
-      fileEl.click();
+    } else {
+      const n = (profileNameInput.value || '').trim();
+      openAvatarLightbox({ color: colorForProfile(n || 'x'), letter: (n.charAt(0).toUpperCase() || '?') });
+    }
+  }, {
+    ignoreSelector: '.avatar-edit-badge',
+    onShortPress: () => {
+      if (fileEl) fileEl.click();
     }
   });
 }
@@ -2029,8 +2168,10 @@ let logoRAF = null;
 let logoSmoothMy = 0;
 let logoSmoothPeer = 0;
 let micBtnSmooth = 0;
-let avatarMeSmooth = 0;
-const peerLevelSmooth = {};
+let avatarMeSmoothFast = 0;
+let avatarMeSmoothSlow = 0;
+const peerLevelSmoothFast = {};
+const peerLevelSmoothSlow = {};
 
 function logoLevelOf(an, data){
   an.getByteFrequencyData(data);
@@ -2042,13 +2183,36 @@ function smoothTo(current, target, attack, release){
   return target > current ? current + (target - current) * attack : current + (target - current) * release;
 }
 
+// --- Avatar atrofidagi "nafas oluvchi" (breathing) halqa — ikki qatlam har xil tezlikda pulsatsiya qiladi ---
+// Tez qatlam (kichik, ravshan halqa) + sekin qatlam (kattaroq, xira, kechroq javob beruvchi halqa) —
+// ikkisi birgalikda Telegram guruh qo'ng'irog'idagi kabi to'lqinsimon, tekis effekt beradi.
+function applySpeakingRing(el, fastLevel, slowLevel){
+  if (!el) return;
+  if (fastLevel < 0.015 && slowLevel < 0.015){
+    el.style.boxShadow = '';
+    el.style.transform = 'scale(1)';
+    return;
+  }
+  const innerSpread = (2 + fastLevel * 9).toFixed(1);
+  const innerAlpha = (0.28 + fastLevel * 0.32).toFixed(2);
+  const outerBlur = (10 + slowLevel * 26).toFixed(1);
+  const outerSpread = (4 + slowLevel * 16).toFixed(1);
+  const outerAlpha = (0.10 + slowLevel * 0.20).toFixed(2);
+  el.style.boxShadow =
+    '0 0 0 ' + innerSpread + 'px rgba(45, 212, 138, ' + innerAlpha + '), ' +
+    '0 0 ' + outerBlur + 'px ' + outerSpread + 'px rgba(45, 212, 138, ' + outerAlpha + ')';
+  // Rasmning o'zi endi deyarli kattalashmaydi — asosiy "hayot" halqadan keladi, shu bois tekisroq va yoqimliroq ko'rinadi
+  el.style.transform = 'scale(' + (1 + fastLevel * 0.05).toFixed(3) + ')';
+}
+
 function startLogoReact(){
   if (logoRAF) return;
   const logo = document.getElementById('appLogo');
   logoSmoothMy = 0;
   logoSmoothPeer = 0;
   micBtnSmooth = 0;
-  avatarMeSmooth = 0;
+  avatarMeSmoothFast = 0;
+  avatarMeSmoothSlow = 0;
   function loop(){
     if (document.hidden){
       logoRAF = requestAnimationFrame(loop);
@@ -2058,7 +2222,9 @@ function startLogoReact(){
     const myLevel = (!muted && !forceMuted) ? smoothLevel : 0;
     logoSmoothMy += (myLevel - logoSmoothMy) * 0.08;
     micBtnSmooth = smoothTo(micBtnSmooth, myLevel, 0.3, 0.09);
-    avatarMeSmooth = smoothTo(avatarMeSmooth, myLevel, 0.3, 0.09);
+    // Ikki qatlam: tez (kichik, aniq halqa) va sekin (kattaroq, xira, "to'lqin" hissi beradi)
+    avatarMeSmoothFast = smoothTo(avatarMeSmoothFast, myLevel, 0.35, 0.10);
+    avatarMeSmoothSlow = smoothTo(avatarMeSmoothSlow, myLevel, 0.10, 0.035);
 
     // --- Mic tugma: ovoz balandligiga qarab pulsatsiya (Telegram uslubida yumshoq halqa) ---
     if (muteBtn){
@@ -2074,11 +2240,11 @@ function startLogoReact(){
           '0 10px 32px rgba(18, 168, 100, 0.45)';
       }
     }
-    // --- Mening avatarim: gapirganda kattalashadi ---
+    // --- Mening avatarim: gapirganda atrofida to'lqinsimon halqa "nafas oladi" ---
     const avatarMe = document.getElementById('avatar-me');
-    if (avatarMe) avatarMe.style.transform = 'scale(' + (1 + avatarMeSmooth * 0.24).toFixed(3) + ')';
+    applySpeakingRing(avatarMe, avatarMeSmoothFast, avatarMeSmoothSlow);
 
-    // --- Xonadagi har bir ishtirokchi: o'z ovoz balandligiga qarab avatar kattalashadi/kichrayadi ---
+    // --- Xonadagi har bir ishtirokchi: o'z ovoz balandligiga qarab xuddi shunday to'lqinsimon halqa ---
     let targetPeer = 0;
     Object.keys(peerAnalysers).forEach(pid => {
       const a = peerAnalysers[pid];
@@ -2087,14 +2253,16 @@ function startLogoReact(){
       if (lvl > targetPeer) targetPeer = lvl;
       const pMuted = !!peerMuted[pid] || !!peerForceMuted[pid];
       const effLvl = pMuted ? 0 : lvl;
-      const prev = peerLevelSmooth[pid] || 0;
-      peerLevelSmooth[pid] = smoothTo(prev, effLvl, 0.3, 0.09);
+      const prevFast = peerLevelSmoothFast[pid] || 0;
+      const prevSlow = peerLevelSmoothSlow[pid] || 0;
+      peerLevelSmoothFast[pid] = smoothTo(prevFast, effLvl, 0.35, 0.10);
+      peerLevelSmoothSlow[pid] = smoothTo(prevSlow, effLvl, 0.10, 0.035);
       const avEl = document.getElementById('avatar-' + pid);
-      if (avEl) avEl.style.transform = 'scale(' + (1 + peerLevelSmooth[pid] * 0.24).toFixed(3) + ')';
+      applySpeakingRing(avEl, peerLevelSmoothFast[pid], peerLevelSmoothSlow[pid]);
     });
     // Xonani tark etgan peer'larning eski smooth qiymatlarini tozalab boramiz
-    Object.keys(peerLevelSmooth).forEach(pid => {
-      if (!peerAnalysers[pid]) delete peerLevelSmooth[pid];
+    Object.keys(peerLevelSmoothFast).forEach(pid => {
+      if (!peerAnalysers[pid]){ delete peerLevelSmoothFast[pid]; delete peerLevelSmoothSlow[pid]; }
     });
 
     logoSmoothPeer += (targetPeer - logoSmoothPeer) * 0.08;
@@ -2121,8 +2289,9 @@ function stopLogoReact(){
     muteBtn.style.transform = 'scale(1)';
     muteBtn.style.boxShadow = '';
   }
-  document.querySelectorAll('.avatar').forEach(el => { el.style.transform = 'scale(1)'; });
-  Object.keys(peerLevelSmooth).forEach(k => delete peerLevelSmooth[k]);
+  document.querySelectorAll('.avatar').forEach(el => { el.style.transform = 'scale(1)'; el.style.boxShadow = ''; });
+  Object.keys(peerLevelSmoothFast).forEach(k => delete peerLevelSmoothFast[k]);
+  Object.keys(peerLevelSmoothSlow).forEach(k => delete peerLevelSmoothSlow[k]);
 }
 
 function stopMeter(){
@@ -2903,8 +3072,10 @@ async function leave(){
   maxParticipantsCreateInput.value = DEFAULT_MAX_PARTICIPANTS;
   joinPassWrap.style.display = 'none';
   createdCodeBox.classList.remove('show');
+  if (createAdvPanel){ createAdvPanel.classList.remove('open'); createAdvToggle.setAttribute('aria-expanded','false'); }
+  ensureCreateDefaults();
   setStatusJoin('Ismingiz va xona kodini kiriting');
-  setStatusCreate('Ma\'lumotlarni to\'ldiring va XONA YARATISH bosing');
+  setStatusCreate('Xona nomini yozing va XONA YARATISH bosing');
   refreshAllBtnStates();
   refreshRoomLists();
 }
