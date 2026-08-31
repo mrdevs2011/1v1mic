@@ -83,6 +83,11 @@
     padding:12px 8px; border-radius:12px; outline:none; text-transform:uppercase;
     transition: border-color .15s, box-shadow .15s, background .25s;
   }
+  /* Placeholder yozilgan holicha (kichik harflarda) ko'rinishi kerak — faqat
+     foydalanuvchi haqiqiy kiritgan qiymat katta harfga aylanadi (input o'zida) */
+  input#roomJoin::placeholder, input#roomCreate::placeholder{
+    text-transform:none; letter-spacing:0.3px;
+  }
   input#roomJoin:focus, input#roomCreate:focus{ border-color:var(--amber); box-shadow:0 0 0 3px var(--amber-dim); }
   input#passwordJoin, input#passwordCreate, input#roomNameCreate, input#maxParticipantsCreate{
     flex:1; background:var(--input-bg); border:1px solid var(--line); color:var(--text);
@@ -185,7 +190,24 @@
   .subtab-panel, .psub-panel{ display:none; }
   .subtab-panel.active, .psub-panel.active{ display:block; }
 
-  .head-right{ display:flex; align-items:center; flex-shrink:0; }
+  .head-right{ display:flex; align-items:center; gap:8px; flex-shrink:0; }
+  .head-link-btn{
+    width:38px; height:38px; border-radius:50%; background:var(--input-bg); border:1px solid var(--line);
+    color:var(--text-dim); display:flex; align-items:center; justify-content:center; cursor:pointer;
+    transition:transform .15s, box-shadow .15s, border-color .15s, color .15s, background .15s;
+    padding:0; flex-shrink:0;
+    -webkit-touch-callout:none; -webkit-user-select:none; user-select:none; touch-action:manipulation;
+  }
+  .head-link-btn:hover{ border-color:var(--amber); color:var(--amber); transform:translateY(-1px); }
+  .head-link-btn:active{ transform:translateY(0); }
+  .head-link-btn.copied{ border-color:#2dd48a; color:#2dd48a; }
+  .head-link-btn svg{ width:17px; height:17px; display:block; }
+  #headTag.clickable{
+    cursor:pointer; transition:color .15s;
+    -webkit-touch-callout:none; -webkit-user-select:none; user-select:none;
+  }
+  #headTag.clickable:hover{ color:var(--amber); }
+  #headTag.clickable:active{ opacity:.7; }
   .profile-icon-btn{
     width:38px; height:38px; border-radius:50%; background:var(--input-bg); border:1px solid var(--line);
     color:var(--text-dim); display:flex; align-items:center; justify-content:center; cursor:pointer;
@@ -205,6 +227,7 @@
   }
   .profile-icon-btn svg{ width:18px; height:18px; display:block; }
   .profile-icon-btn.has-letter svg{ display:none; }
+  .profile-icon-btn .profile-icon-back-svg{ display:none; }
   .profile-icon-letter{
     display:none; width:100%; height:100%;
     align-items:center; justify-content:center;
@@ -218,6 +241,18 @@
   }
   .profile-icon-btn.has-photo svg,
   .profile-icon-btn.has-photo .profile-icon-letter{ display:none !important; }
+
+  /* Profil sahifasi ochilganda: rasm/harf o'rniga "orqaga" strelkali neytral doira ko'rinadi */
+  .profile-icon-btn.back-mode .profile-icon-photo-svg{ display:none !important; }
+  .profile-icon-btn.back-mode .profile-icon-letter{ display:none !important; }
+  .profile-icon-btn.back-mode .profile-icon-back-svg{ display:block !important; }
+  .profile-icon-btn.back-mode{
+    background:var(--input-bg) !important;
+    background-image:none !important;
+    border-color:var(--line) !important;
+    color:var(--text-dim);
+  }
+  .profile-icon-btn.back-mode:hover{ border-color:var(--amber) !important; color:var(--amber); }
 
   .guest-id-row{ display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-top:1px dashed var(--line); margin-top:4px; }
   .guest-id-row .gid-label{ font-size:12px; color:var(--text-dim); letter-spacing:0; }
@@ -351,6 +386,30 @@
     padding:8px 10px; border-radius:14px; transition:background .15s;
   }
   .prow:hover{ background:rgba(255,255,255,0.04); }
+  /* Avatar'ni o'rab turuvchi konteyner — ripple halqalar shu ichida joylashadi,
+     shunda ular flex-layout'ni buzmaydi va avatar bilan bir markazda turadi */
+  .avatar-wrap{
+    position:relative; width:44px; height:44px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .avatar-wrap .avatar{ position:relative; z-index:2; }
+  /* Telegram uslubidagi "sonar" to'lqin halqalari — tashqariga qarab kengayib, xiralashib boradi.
+     Ikkita halqa har xil kechikish bilan ishga tushadi — shuning uchun "1ta doira" emas,
+     uzluksiz, bir-birini quvib boruvchi to'lqin hissi paydo bo'ladi. */
+  .avatar-ripple{
+    position:absolute; inset:0; border-radius:50%;
+    border:1.5px solid rgba(45, 212, 138, 0.65);
+    opacity:0; pointer-events:none; z-index:1;
+    animation: avatarPulseRing 1.9s cubic-bezier(.22,.68,.32,1) infinite;
+    animation-play-state: paused;
+  }
+  .avatar-ripple.r2{ animation-delay: .65s; border-color: rgba(45, 212, 138, 0.4); }
+  .avatar-wrap.ring-active .avatar-ripple{ animation-play-state: running; }
+  @keyframes avatarPulseRing{
+    0%{ transform:scale(1); opacity:.6; }
+    65%{ opacity:.14; }
+    100%{ transform:scale(2.05); opacity:0; }
+  }
   .avatar{
     width:44px; height:44px; border-radius:50%; flex-shrink:0;
     display:flex; align-items:center; justify-content:center;
@@ -387,8 +446,8 @@
 
   .vc-controls{
     display:flex; align-items:flex-end; justify-content:center; gap:22px;
-    padding:18px 8px 6px; margin-top:auto;
-    background: radial-gradient(ellipse at 50% 120%, rgba(45, 212, 138, 0.08) 0%, transparent 55%);
+    padding:18px 8px 6px; margin-top:auto; position:relative;
+    background: radial-gradient(ellipse 280px 200px at 50% 60%, rgba(45, 212, 138, 0.16) 0%, transparent 70%);
   }
   .vc-side-btn{
     width:52px; height:52px; border-radius:50%; border:none;
@@ -434,6 +493,23 @@
   .vc-mic-btn svg{ width:38px; height:38px; stroke-width:2.2; }
   .vc-mic-hint{
     text-align:center; font-size:12px; color:#8b93a7; margin-top:10px; margin-bottom:2px; font-weight:500;
+  }
+  /* Mikrofon tugmasi atrofidagi to'lqinli halqalar — o'zim gapirganimda tashqariga tarqaladi */
+  .mic-btn-wrap{ position:relative; width:88px; height:88px; }
+  .mic-btn-wrap .vc-mic-btn{ position:relative; z-index:2; width:100%; height:100%; }
+  .mic-ripple{
+    position:absolute; inset:0; border-radius:50%;
+    border:2px solid rgba(45, 212, 138, 0.55);
+    opacity:0; pointer-events:none; z-index:1;
+    animation: micPulseRing 2.1s cubic-bezier(.22,.68,.32,1) infinite;
+    animation-play-state: paused;
+  }
+  .mic-ripple.r2{ animation-delay:.7s; border-color: rgba(45, 212, 138, 0.32); }
+  .mic-btn-wrap.ring-active .mic-ripple{ animation-play-state: running; }
+  @keyframes micPulseRing{
+    0%{ transform:scale(1); opacity:.5; }
+    65%{ opacity:.12; }
+    100%{ transform:scale(1.75); opacity:0; }
   }
 
   .meter{ display:none !important; }
@@ -526,14 +602,18 @@
         <line x1="9" y1="20" x2="15" y2="20" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round"/>
       </svg>
       <div>
-        <h1>OVOZLI SUHBAT</h1>
-        <div class="tag">GURUH REJIMI — XOHLAGAN ODAM QO'SHILADI</div>
+        <h1 id="headTitle">OVOZLI SUHBAT</h1>
+        <div class="tag" id="headTag" title="Bosing — nusxalash">GURUH REJIMI — XOHLAGAN ODAM QO'SHILADI</div>
       </div>
     </div>
     <div class="head-right">
+      <button class="head-link-btn" id="headRoomLinkBtn" title="Xona havolasini nusxalash" aria-label="Xona havolasini nusxalash" style="display:none;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+      </button>
       <button class="profile-icon-btn" id="profileIconBtn" title="Profil" aria-label="Profil">
         <span class="profile-icon-letter" id="headerAvatarLetter">?</span>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <svg class="profile-icon-photo-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <svg class="profile-icon-back-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
       </button>
     </div>
     <div class="rec-dot" id="dot" aria-hidden="true"></div>
@@ -549,7 +629,7 @@
     <div class="tab-panel active" id="panel-join">
       <label for="roomJoin">XONA KODI</label>
       <div class="code-row">
-        <input id="roomJoin" minlength="4" maxlength="8" placeholder="4-8 BELGI, MASALAN 1234" />
+        <input id="roomJoin" minlength="4" maxlength="8" placeholder="Xona raqamini kiriting" />
       </div>
       <div id="joinPassWrap" style="display:none;">
         <label for="passwordJoin">PAROL</label>
@@ -741,9 +821,13 @@
       </div>
 
       <div class="vc-side-wrap">
-        <button type="button" class="vc-mic-btn" id="muteBtn" title="Mikrofon">
-          <svg id="muteIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
-        </button>
+        <div class="mic-btn-wrap" id="micBtnWrap">
+          <span class="mic-ripple r1"></span>
+          <span class="mic-ripple r2"></span>
+          <button type="button" class="vc-mic-btn" id="muteBtn" title="Mikrofon">
+            <svg id="muteIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+          </button>
+        </div>
         <div class="vc-mic-hint" id="muteTxt">Mikrofonni o‘chirish</div>
       </div>
 
@@ -1005,7 +1089,11 @@ function applyAvatarToEl(el, nameFallback){
   }
 }
 function updateProfileAvatar(){
-  const n = profileNameInput.value.trim();
+  // MUHIM: profileNameInput real account uchun username'ni ham saqlashi mumkin
+  // (renderAccountView'da: isAnon ? p.name : (p.username || p.name)).
+  // Shuning uchun header avatar aynan ISM (currentProfile.name) asosida hisoblanishi kerak,
+  // aks holda header va account panel avatar'lari mos kelmay qoladi.
+  const n = (currentProfile && currentProfile.name) ? currentProfile.name.trim() : profileNameInput.value.trim();
   const letter = (n.charAt(0).toUpperCase() || '?');
   const color = colorForProfile(n || 'x');
   applyAvatarToEl(profileAvatarEl, n);
@@ -1079,6 +1167,7 @@ let muted = false;
 let audioCtx, analyser, meterRAF;
 
 let joined = false;
+let currentRoomName = ''; // Header'da ko'rsatiladigan xona nomi (Firestore roomData.name)
 let roomRef = null;
 let myPeerRef = null;
 let heartbeatTimer = null;
@@ -1211,10 +1300,16 @@ function isProfileScreenOpen(){
 function openProfileScreen(){
   lobbyEl.style.display = 'none';
   profileScreenEl.style.display = 'block';
+  profileIconBtn.classList.add('back-mode');
+  profileIconBtn.title = 'Orqaga';
+  profileIconBtn.setAttribute('aria-label', 'Orqaga');
 }
 function closeProfileScreen(){
   profileScreenEl.style.display = 'none';
   lobbyEl.style.display = 'block';
+  profileIconBtn.classList.remove('back-mode');
+  profileIconBtn.title = 'Profil';
+  profileIconBtn.setAttribute('aria-label', 'Profil');
 }
 
 // --- Umumiy "bosib turish" (long-press) gesture: mouse va touch uchun bir xil ishlaydi ---
@@ -2158,6 +2253,9 @@ function startMeter(stream){
         speakingState[myId] = nowSpeaking;
         if (joined) renderParticipants();
       }
+      // Mikrofon tugmasi atrofidagi to'lqinli halqalar — faqat gapirayotganda ishga tushadi
+      const micWrap = document.getElementById('micBtnWrap');
+      if (micWrap) micWrap.classList.toggle('ring-active', nowSpeaking);
       meterRAF = requestAnimationFrame(loop);
     }
     loop();
@@ -2201,8 +2299,10 @@ function applySpeakingRing(el, fastLevel, slowLevel){
   el.style.boxShadow =
     '0 0 0 ' + innerSpread + 'px rgba(45, 212, 138, ' + innerAlpha + '), ' +
     '0 0 ' + outerBlur + 'px ' + outerSpread + 'px rgba(45, 212, 138, ' + outerAlpha + ')';
-  // Rasmning o'zi endi deyarli kattalashmaydi — asosiy "hayot" halqadan keladi, shu bois tekisroq va yoqimliroq ko'rinadi
-  el.style.transform = 'scale(' + (1 + fastLevel * 0.05).toFixed(3) + ')';
+  // Rasmning o'zi endi ovoz balandligiga qarab yaqqol kattalashadi/kichraydi —
+  // tez qatlam (fastLevel) asosiy "urg'u"ni beradi, sekin qatlam (slowLevel) yumshoq bazani beradi
+  const scale = 1 + fastLevel * 0.16 + slowLevel * 0.05;
+  el.style.transform = 'scale(' + scale.toFixed(3) + ')';
 }
 
 function startLogoReact(){
@@ -2290,6 +2390,9 @@ function stopLogoReact(){
     muteBtn.style.boxShadow = '';
   }
   document.querySelectorAll('.avatar').forEach(el => { el.style.transform = 'scale(1)'; el.style.boxShadow = ''; });
+  document.querySelectorAll('.avatar-wrap').forEach(el => el.classList.remove('ring-active'));
+  const micWrapEl = document.getElementById('micBtnWrap');
+  if (micWrapEl) micWrapEl.classList.remove('ring-active');
   Object.keys(peerLevelSmoothFast).forEach(k => delete peerLevelSmoothFast[k]);
   Object.keys(peerLevelSmoothSlow).forEach(k => delete peerLevelSmoothSlow[k]);
 }
@@ -2378,6 +2481,13 @@ function displayName(pid){
   if (pid === myId) return myName || 'Siz';
   return peerNames[pid] || pid.slice(0,4);
 }
+// Rasm o'rnatilmagan bo'lsa, avatar harfi USERNAME'dan emas, ISM'dan olinishi kerak.
+// Real akkauntlarda `myName` (=profileNameInput.value) ko'pincha username bo'lib qoladi
+// (chunki xonaga kirishda "handle" sifatida shu ishlatiladi), lekin currentProfile.name
+// har doim haqiqiy ISMni saqlaydi — shuning uchun harf hisoblashda shuni ustuvor qilamiz.
+function myAvatarLetterName(){
+  return (currentProfile && currentProfile.name && currentProfile.name.trim()) || myName || '';
+}
 
 const speakingState = {};
 const peerAnalysers = {};
@@ -2422,7 +2532,11 @@ function renderParticipants(){
   const meSpeaking = !meEffectivelyMuted && speakingState[myId];
   const meStateLabel = forceMuted ? 'host o\'chirdi' : (muted ? 'mikrofon o\'chiq' : (meSpeaking ? 'gapiryapti' : 'tinglayapti'));
   meRow.innerHTML = `
-    <div id="avatar-me" data-pid="me" class="avatar ${meSpeaking ? 'speaking-ring' : ''}" style="${avatarStyleAttr(myAvatarUrl, colorFor(myId))}">${avatarInnerHtml(myAvatarUrl, initialFor(myName))}</div>
+    <div class="avatar-wrap ${meSpeaking ? 'ring-active' : ''}">
+      <span class="avatar-ripple r1"></span>
+      <span class="avatar-ripple r2"></span>
+      <div id="avatar-me" data-pid="me" class="avatar ${meSpeaking ? 'speaking-ring' : ''}" style="${avatarStyleAttr(myAvatarUrl, colorFor(myId))}">${avatarInnerHtml(myAvatarUrl, initialFor(myAvatarLetterName()))}</div>
+    </div>
     <div class="pinfo">
       <div class="pname me-label">${escapeHtml(myName || 'Siz')}${isRoomHost ? ' · host' : ''}</div>
       <div class="pstate ${meEffectivelyMuted ? 'invited' : (meSpeaking ? 'speaking' : 'listening')}">${meStateLabel}</div>
@@ -2449,7 +2563,11 @@ function renderParticipants(){
       </button>` : '';
     const pAvatarUrl = peerAvatars[pid] || null;
     row.innerHTML = `
-      <div id="avatar-${pid}" data-pid="${pid}" class="avatar ${speaking ? 'speaking-ring' : ''}" style="${avatarStyleAttr(pAvatarUrl, colorFor(pid))}">${avatarInnerHtml(pAvatarUrl, initialFor(displayName(pid)))}</div>
+      <div class="avatar-wrap ${speaking ? 'ring-active' : ''}">
+        <span class="avatar-ripple r1"></span>
+        <span class="avatar-ripple r2"></span>
+        <div id="avatar-${pid}" data-pid="${pid}" class="avatar ${speaking ? 'speaking-ring' : ''}" style="${avatarStyleAttr(pAvatarUrl, colorFor(pid))}">${avatarInnerHtml(pAvatarUrl, initialFor(displayName(pid)))}</div>
+      </div>
       <div class="pinfo">
         <div class="pname">${escapeHtml(displayName(pid))}</div>
         <div class="pstate ${stateClass}">${stateLabel}</div>
@@ -2482,7 +2600,7 @@ participantsEl.addEventListener('click', (e) => {
   if (pid === 'me'){
     const url = currentAvatarUrl();
     if (url) openAvatarLightbox({ url });
-    else openAvatarLightbox({ color: colorFor(myId), letter: initialFor(myName) });
+    else openAvatarLightbox({ color: colorFor(myId), letter: initialFor(myAvatarLetterName()) });
   } else {
     const url = peerAvatars[pid] || null;
     if (url) openAvatarLightbox({ url });
@@ -2660,6 +2778,17 @@ function enterCallScreen(){
   setStatus('');
   const titleEl = document.getElementById('vcRoomTitle');
   if (titleEl) titleEl.textContent = roomRef ? ('Xona · ' + roomRef.id) : 'Ovozli suhbat';
+  // Yuqoridagi doimiy header: "OVOZLI SUHBAT" o'rniga xona nomi, tag o'rniga xona kodi —
+  // tag bosilsa kod nusxalanadi, o'ng tomondagi link tugma esa xona havolasini nusxalaydi
+  const headTitleEl = document.getElementById('headTitle');
+  const headTagEl = document.getElementById('headTag');
+  const headLinkBtn = document.getElementById('headRoomLinkBtn');
+  if (headTitleEl) headTitleEl.textContent = currentRoomName || (roomRef ? roomRef.id : 'OVOZLI SUHBAT');
+  if (headTagEl && roomRef){
+    headTagEl.textContent = 'XONA KODI: ' + roomRef.id;
+    headTagEl.classList.add('clickable');
+  }
+  if (headLinkBtn) headLinkBtn.style.display = '';
   renderParticipants();
   startLogoReact();
   applyEffectiveMuteState();
@@ -2893,6 +3022,7 @@ joinBtn.addEventListener('click', async () => {
   myName = enteredName;
   myPeerRef = myPeerDoc;
   isRoomHost = (roomData.createdBy === myId);
+  currentRoomName = roomData.name || '';
   muted = false;
   forceMuted = false;
   if (password) saveRoomPass(room, password);
@@ -2999,6 +3129,7 @@ createBtn.addEventListener('click', async () => {
 
   if (password) saveRoomPass(room, password);
   else saveRoomPass(room, '');
+  currentRoomName = roomName || '';
   setBtnLoading(createBtn, false, '', 'XONA YARATISH');
   enterCallScreen();
   attachPresence(room, peersCol);
@@ -3009,6 +3140,33 @@ createBtn.addEventListener('click', async () => {
 const COPY_ICON_INNER = '<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>';
 const CHECK_ICON_INNER = '<polyline points="20 6 9 17 4 12"/>';
 let toastTimer = null;
+// Umumiy: matnni clipboard'ga nusxalash, mos yozuvni ko'rsatish (Firefox/eski brauzerlar uchun fallback bilan)
+async function copyTextWithToast(text, successMsg){
+  try{
+    await navigator.clipboard.writeText(text);
+    showToast(successMsg);
+  }catch(e){
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    try{ document.execCommand('copy'); showToast(successMsg); }
+    catch(e2){ prompt('Nusxalang:', text); }
+    document.body.removeChild(ta);
+  }
+}
+document.getElementById('headTag')?.addEventListener('click', () => {
+  if (!roomRef || !roomRef.id) return; // faqat xonada bo'lganda faol (clickable klassi bilan mos)
+  copyTextWithToast(roomRef.id, 'Xona kodi nusxalandi: ' + roomRef.id);
+});
+document.getElementById('headRoomLinkBtn')?.addEventListener('click', (e) => {
+  if (!roomRef || !roomRef.id) return;
+  const link = window.location.origin + window.location.pathname + '?room=' + encodeURIComponent(roomRef.id);
+  copyTextWithToast(link, 'Xona havolasi nusxalandi');
+  const btn = e.currentTarget;
+  btn.classList.add('copied');
+  setTimeout(() => btn.classList.remove('copied'), 1500);
+});
 function showToast(msg, ms){
   const el = document.getElementById('toast');
   if (!el) return;
@@ -3063,6 +3221,16 @@ async function leave(){
   callScreenEl.classList.remove('active-call');
   lobbyEl.style.display = 'block';
   clearRoomFromUrl();
+  currentRoomName = '';
+  const headTitleEl = document.getElementById('headTitle');
+  const headTagEl = document.getElementById('headTag');
+  const headLinkBtn = document.getElementById('headRoomLinkBtn');
+  if (headTitleEl) headTitleEl.textContent = 'OVOZLI SUHBAT';
+  if (headTagEl){
+    headTagEl.textContent = "GURUH REJIMI — XOHLAGAN ODAM QO'SHILADI";
+    headTagEl.classList.remove('clickable');
+  }
+  if (headLinkBtn) headLinkBtn.style.display = 'none';
 
   passwordJoinInput.value = '';
   passwordCreateInput.value = '';
