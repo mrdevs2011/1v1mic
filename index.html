@@ -1228,8 +1228,8 @@ function tryAutoJoinFromUrl(){
   if (joinTabBtn) joinTabBtn.click();
   roomJoinInput.value = code;
   refreshJoinBtnState();
-  // Parol maydonini xona tekshiruvi orqali ko'rsatish (input event)
-  roomJoinInput.dispatchEvent(new Event('input', { bubbles: true }));
+  // Debounce'siz, darhol tekshiramiz — shunda room ID va PAROL maydonlari teng vaqtda chiqadi
+  checkRoomPasswordUI(code.trim().toUpperCase());
 }
 
 function renderAccountView(user){
@@ -1590,21 +1590,23 @@ submitOnEnter(roomNameCreateInput, () => { if (!createBtn.disabled) createBtn.cl
 submitOnEnter(passwordCreateInput, () => { if (!createBtn.disabled) createBtn.click(); });
 
 let roomCheckTimer = null;
+async function checkRoomPasswordUI(code){
+  if (!code){ joinPassWrap.style.display = 'none'; return; }
+  try{
+    const snap = await db.collection(ROOM_COLLECTION).doc(code).get();
+    if (snap.exists && snap.data().passwordHash){
+      joinPassWrap.style.display = 'block';
+    } else {
+      joinPassWrap.style.display = 'none';
+    }
+  }catch(e){}
+}
 roomJoinInput.addEventListener('input', () => {
   refreshJoinBtnState();
   const code = roomJoinInput.value.trim().toUpperCase();
   clearTimeout(roomCheckTimer);
   if (!code){ joinPassWrap.style.display = 'none'; return; }
-  roomCheckTimer = setTimeout(async () => {
-    try{
-      const snap = await db.collection(ROOM_COLLECTION).doc(code).get();
-      if (snap.exists && snap.data().passwordHash){
-        joinPassWrap.style.display = 'block';
-      } else {
-        joinPassWrap.style.display = 'none';
-      }
-    }catch(e){}
-  }, 350);
+  roomCheckTimer = setTimeout(() => { checkRoomPasswordUI(code); }, 350);
 });
 roomCreateInput.addEventListener('input', refreshCreateBtnState);
 roomNameCreateInput.addEventListener('input', refreshCreateBtnState);
